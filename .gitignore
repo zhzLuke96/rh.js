@@ -91,3 +91,4 @@ dist
 schema.json
 _gen
 *.html
+.vscode/

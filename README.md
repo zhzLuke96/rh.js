@@ -37,7 +37,7 @@ a lightweight / reactivity web framework
   import rh from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
 
   const timeStr = rh.vR.ref(new Date().toLocaleString());
-  setInterval(() => dateStr.value = new Date().toLocaleString(), 1000);
+  setInterval(() => timeStr.value = new Date().toLocaleString(), 1000);
 
   rh.mount('#app', () =>
     rh('h1', {}, ...rh.rt`hello world, now: ${() => timeStr.value}`)
