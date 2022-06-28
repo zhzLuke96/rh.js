@@ -1,0 +1,49 @@
+{
+  "name": "@rhjs/rh",
+  "description": "a lightweight / reactivity web framework",
+  "version": "0.0.1",
+  "source": "src/main.ts",
+  "main": "dist/main.umd.js",
+  "module": "dist/main.modern.module.js",
+  "unpkg": "dist/main.umd.js",
+  "types": "dist/main.d.ts",
+  "keywords": [
+    "microbundle",
+    "typescript"
+  ],
+  "files": [
+    "dist/**.js*",
+    "dist/**/*.ts"
+  ],
+  "scripts": {
+    "build": "microbundle --external none --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
+    "watch": "microbundle watch --external none --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
+    "lint": "prettier src test -c",
+    "format": "prettier src test --write",
+    "prepack": "rm -rf dist && npm run build",
+    "release": "npm run prepack && source .env && npx np"
+  },
+  "devDependencies": {
+    "microbundle": "^0.15.0",
+    "prettier": "^2.6.2"
+  },
+  "prettier": {
+    "singleQuote": true
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhzLuke96/rh.js.git"
+  },
+  "author": "zhzluke96",
+  "bugs": {
+    "url": "https://github.com/zhzLuke96/rh.js/issues"
+  },
+  "homepage": "https://github.com/zhzLuke96/rh.js#readme",
+  "dependencies": {
+    "@vue/reactivity": "^3.2.37"
+  }
+}
