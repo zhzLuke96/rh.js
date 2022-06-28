@@ -34,7 +34,7 @@ a lightweight / reactivity web framework
 <div id="app"></div>
 
 <script type="module">
-  import rh from 'https://unpkg.com/rh.js/main.modern.module.js';
+  import rh from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
 
   const timeStr = rh.vR.ref(new Date().toLocaleString());
   setInterval(() => dateStr.value = new Date().toLocaleString(), 1000);
@@ -50,7 +50,7 @@ a lightweight / reactivity web framework
 <div id="app"></div>
 
 <script type="module">
-  import rh from 'https://unpkg.com/rh.js/main.modern.module.js';
+  import rh from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
   const counter = {
     setup({ defValue = 0 }) {
       const count = rh.vR.ref(defValue);
