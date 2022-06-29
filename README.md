@@ -34,13 +34,13 @@ a lightweight / reactivity web framework
 <div id="app"></div>
 
 <script type="module">
-  import rh from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
+  import { rh, kit } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
 
   const timeStr = rh.vR.ref(new Date().toLocaleString());
   setInterval(() => timeStr.value = new Date().toLocaleString(), 1000);
 
   rh.mount('#app', () =>
-    rh('h1', {}, ...rh.rt`hello world, now: ${() => timeStr.value}`)
+    rh('h1', {}, ...kit.rt`hello world, now: ${() => timeStr.value}`)
   );
 </script>
 ```
@@ -50,7 +50,7 @@ a lightweight / reactivity web framework
 <div id="app"></div>
 
 <script type="module">
-  import rh from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
+  import { rh } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
   const counter = {
     setup({ defValue = 0 }) {
       const count = rh.vR.ref(defValue);
