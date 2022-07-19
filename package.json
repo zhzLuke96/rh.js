@@ -17,7 +17,9 @@
   ],
   "scripts": {
     "build": "microbundle --external none --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
-    "watch": "microbundle watch --external none --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
+    "watch": "microbundle watch --external none --define process.env.NODE_ENV=development,PKG_VERSION=$npm_package_version --compress false",
+    "dev": "yarn watch",
+    "start": "yarn build",
     "lint": "prettier src test -c",
     "format": "prettier src test --write",
     "prepack": "rm -rf dist && npm run build",

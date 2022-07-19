@@ -1,5 +1,5 @@
-import {effect} from '@vue/reactivity';
-import {rh} from './rh'
+import { effect } from '@vue/reactivity';
+import { rh } from './rh';
 
 /**
  * reactivity text node
@@ -32,7 +32,7 @@ export const rTpl = (
   for (const [sel, props] of Object.entries(propses)) {
     const elem = dom.querySelector(sel);
     if (elem) {
-      rh.patch(elem as any, props);
+      rh(elem, props);
     }
   }
   return dom;
@@ -41,34 +41,47 @@ export const rTpl = (
 /**
  * reactivity html
  */
-export const rHtml = (
-  strs: TemplateStringsArray, ...fns: Array<() => any>
-) => {
+export const rHtml = (strs: TemplateStringsArray, ...fns: Array<() => any>) => {
   const randid = Math.random().toString(36).slice(2);
-  const slots = fns.map((fn, idx) => ({fn, flag: `_${randid}_${idx}_`}));
-  const htmlContent = strs.reduce((acc, cur, idx) => `${acc}${cur}${slots[idx]?.flag || ''}`,'');
+  const slots = fns.map((fn, idx) => ({ fn, flag: `_${randid}_${idx}_` }));
+  const htmlContent = strs.reduce(
+    (acc, cur, idx) => `${acc}${cur}${slots[idx]?.flag || ''}`,
+    ''
+  );
   const walk = (dom: any) => {
     if (dom instanceof HTMLElement) {
       const props = {} as any;
       for (let i = 0; i < dom.attributes.length; i++) {
         const attribute = dom.attributes[i];
-        const slot = slots.find(x => x.flag === attribute.value);
+        const slot = slots.find((x) => x.flag === attribute.value);
         if (slot) {
           props[attribute.name] = slot.fn;
         }
       }
-      rh.patch(dom, props);
+      rh(dom, props);
       dom.childNodes.forEach(walk);
     }
     if (dom instanceof Text) {
-      const slot = slots.find(x => x.flag === dom.textContent?.trim());
+      const slot = slots.find((x) => x.flag === dom.textContent?.trim());
       if (slot) {
-        effect(() => dom.textContent = slot.fn());
+        effect(() => (dom.textContent = slot.fn()));
       }
     }
-  }
+  };
   const dom = document.createElement('div');
   dom.innerHTML = htmlContent;
   walk(dom);
   return dom.children[0];
-}
+};
+
+/**
+ * catch global error
+ */
+export const onRhError = (callback: (errLike: any) => any) => {
+  const globalParent = document.body.parentElement || document.body;
+  globalParent.addEventListener('rh-err', (ev) => {
+    if ('detail' in ev) {
+      callback(ev['detail']);
+    }
+  });
+};

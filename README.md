@@ -8,7 +8,7 @@ a lightweight / reactivity web framework
 
 **SURPRISE:**
 - Packed only `5kb`
-- Source code within `200` lines
+- Source core code within `200` lines
 - Obvious Responsiveness
 - Easy to use function componentization
 - Zero directive need learn
@@ -68,13 +68,45 @@ a lightweight / reactivity web framework
           'h1',
           {},
           'count: ',
-          rh(() => count.value)
+          count
         ),
         rh('button', { onclick: inc }, '+'),
         rh('button', { onclick: dec }, '-')
       );
     },
   };
+
+  rh.mount('#app', counter);
+  rh.mount('#app', counter);
+  rh.mount('#app', counter);
+</script>
+```
+
+FC
+```html
+<div id="app"></div>
+
+<script type="module">
+  import { rh } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
+  const counter = ({ defValue = 0 }) => {
+    const count = rh.vR.ref(defValue);
+    
+    const inc = () => count.value ++;
+    const dec = () => count.value --;
+
+    return () => rh(
+        'div',
+        {},
+        rh(
+          'h1',
+          {},
+          'count: ',
+          count
+        ),
+        rh('button', { onclick: inc }, '+'),
+        rh('button', { onclick: dec }, '-')
+      );
+  }
 
   rh.mount('#app', counter);
   rh.mount('#app', counter);
