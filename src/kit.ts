@@ -4,10 +4,13 @@ import { rh } from './rh';
 /**
  * reactivity text node
  */
-export const rt = (strs: TemplateStringsArray, ...slots: Array<() => any>) => {
+export const rt = (
+  strings: TemplateStringsArray,
+  ...slots: Array<() => any>
+) => {
   const ret = [] as Text[];
-  for (let idx = 0; idx < strs.length; idx++) {
-    const text = strs[idx];
+  for (let idx = 0; idx < strings.length; idx++) {
+    const text = strings[idx];
     ret.push(document.createTextNode(text));
     const slot = slots[idx];
     if (!slot || typeof slot !== 'function') {
@@ -25,11 +28,11 @@ export const rt = (strs: TemplateStringsArray, ...slots: Array<() => any>) => {
  */
 export const rTpl = (
   htmlContent: string,
-  propses = {} as Record<string, Record<string, any>>
+  propsMap = {} as Record<string, Record<string, any>>
 ) => {
   const dom = new DOMParser().parseFromString(htmlContent, 'text/html').body
     .children[0];
-  for (const [sel, props] of Object.entries(propses)) {
+  for (const [sel, props] of Object.entries(propsMap)) {
     const elem = dom.querySelector(sel);
     if (elem) {
       rh(elem, props);
@@ -41,10 +44,13 @@ export const rTpl = (
 /**
  * reactivity html
  */
-export const rHtml = (strs: TemplateStringsArray, ...fns: Array<() => any>) => {
-  const randid = Math.random().toString(36).slice(2);
-  const slots = fns.map((fn, idx) => ({ fn, flag: `_${randid}_${idx}_` }));
-  const htmlContent = strs.reduce(
+export const rHtml = (
+  strings: TemplateStringsArray,
+  ...fns: Array<() => any>
+) => {
+  const randId = Math.random().toString(36).slice(2);
+  const slots = fns.map((fn, idx) => ({ fn, flag: `_${randId}_${idx}_` }));
+  const htmlContent = strings.reduce(
     (acc, cur, idx) => `${acc}${cur}${slots[idx]?.flag || ''}`,
     ''
   );

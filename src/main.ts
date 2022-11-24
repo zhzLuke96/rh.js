@@ -1,3 +1,3 @@
 export * as kit from './kit';
-export * as buildin from './buildin';
+export * as builtin from './builtin';
 export * from './rh';

@@ -21,22 +21,22 @@ type AnyRecord = Record<string, any>;
 type rhElemRaw = Element | Comment | number | string | boolean | null;
 export type rhElem = rhElemRaw | vR.Ref<rhElemRaw>;
 export type rhView = Element | Comment | null;
-export type RenderFunc = (props?: AnyRecord, ...childs: any[]) => rhElem;
+export type RenderFunc = (props?: AnyRecord, ...children: any[]) => rhElem;
 
-type ComponentRender<Ctx> = (ctx: Ctx, ...childs: any[]) => rhElem;
-type ComponentSetup<Props, Ctx> = (props: Props) => Ctx;
-export type Component<Props extends AnyRecord = AnyRecord, Ctx = unknown> = {
+type ComponentRender<Ctx> = (ctx: Ctx, ...children: any[]) => rhElem;
+type ComponentSetup<Props, Ctx> = (props: Props, ...children: any[]) => Ctx;
+export type Component<Props extends AnyRecord = AnyRecord, Ctx = any> = {
   setup: ComponentSetup<Props, Ctx>;
   render: ComponentRender<Ctx>;
 };
 // *JUST TS Syntactic sugar
-const component = <Props extends AnyRecord = AnyRecord, Ctx = unknown>(
+const component = <Props extends AnyRecord = AnyRecord, Ctx = any>(
   comp: Component<Props, Ctx>
 ) => comp;
 
 export type FunctionComponent<Props extends AnyRecord = AnyRecord> = (
   props?: Props,
-  ...childs: any[]
+  ...children: any[]
 ) => () => rhElem;
 export type FC<Props extends AnyRecord = AnyRecord> = FunctionComponent<Props>;
 
@@ -106,23 +106,23 @@ function execRender(render: () => rhElem) {
 function buildFunctionComponent(
   fc: FunctionComponent,
   props = {} as AnyRecord,
-  ...childs: any[]
+  ...children: any[]
 ) {
-  const render = fc(props, ...childs.map(warpView));
+  const render = fc(props, ...children.map(warpView));
   return execRender(() => render());
 }
 function buildComponent(
   { setup, render }: Component,
   props = {} as AnyRecord,
-  ...childs: any[]
+  ...children: any[]
 ) {
-  const ctx = setup(props);
-  return execRender(() => render(ctx, ...childs.map(warpView)));
+  const ctx = setup(props, ...children);
+  return execRender(() => render(ctx, ...children.map(warpView)));
 }
 function hydrateElement(
   elem: Element,
   props = {} as AnyRecord,
-  ...childs: any[]
+  ...children: any[]
 ) {
   Object.keys(props || {}).forEach((k) => {
     if (k === 'ref' || k === 'effect') {
@@ -141,15 +141,15 @@ function hydrateElement(
     }
     elem.setAttribute(k, props[k]);
   });
-  childs.map(warpView).forEach((child) => child && elem.appendChild(child));
+  children.map(warpView).forEach((child) => child && elem.appendChild(child));
 }
 function createElement(
   tagName: string,
   props = {} as AnyRecord,
-  ...childs: any[]
+  ...children: any[]
 ) {
   const elem = document.createElement(tagName);
-  hydrateElement(elem, props, ...childs);
+  hydrateElement(elem, props, ...children);
   return elem;
 }
 
@@ -180,17 +180,17 @@ const mount = (
 export const rh = (
   one: string | FunctionComponent | Component | Element,
   props = {} as AnyRecord,
-  ...childs: any[]
+  ...children: any[]
 ) => {
   if (typeof one === 'string') {
-    return createElement(one, props, ...childs);
+    return createElement(one, props, ...children);
   } else if (typeof one === 'function') {
-    return buildFunctionComponent(one, props, ...childs);
+    return buildFunctionComponent(one, props, ...children);
   } else if (one instanceof Element) {
-    hydrateElement(one, props, ...childs);
+    hydrateElement(one, props, ...children);
     return one;
   } else {
-    return buildComponent(one, props, ...childs);
+    return buildComponent(one, props, ...children);
   }
 };
 rh.vR = vR;
