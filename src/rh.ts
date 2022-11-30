@@ -136,6 +136,9 @@ function hydrateElement(
       return;
     }
     if (k.startsWith('on') && typeof props[k] === 'function') {
+      const old_cb = (elem as any)['__cb_' + k];
+      old_cb && elem.removeEventListener(k.slice(2), old_cb);
+      (elem as any)['__cb_' + k] = props[k];
       elem.addEventListener(k.slice(2), props[k]);
       return;
     }
@@ -152,7 +155,6 @@ function createElement(
   hydrateElement(elem, props, ...children);
   return elem;
 }
-
 const mount = (
   selector: string,
   funcOrComp: FunctionComponent | Component | Node

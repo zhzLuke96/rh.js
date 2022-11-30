@@ -23,10 +23,12 @@
     "lint": "prettier src test -c",
     "format": "prettier src test --write",
     "prepack": "rm -rf dist && npm run build",
-    "release": "npm run prepack && source .env && npx np"
+    "release": "npm run prepack && source .env && npx np",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
-    "microbundle": "^0.15.0",
+    "microbundle": "^0.15.1",
+    "patch-package": "^6.5.0",
     "prettier": "^2.6.2"
   },
   "prettier": {
@@ -46,6 +48,7 @@
   },
   "homepage": "https://github.com/zhzLuke96/rh.js#readme",
   "dependencies": {
-    "@vue/reactivity": "^3.2.37"
+    "@vue/reactivity": "^3.2.37",
+    "fast-deep-equal": "^3.1.3"
   }
 }

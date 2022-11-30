@@ -9,7 +9,7 @@ a lightweight / reactivity web framework
 **SURPRISE:**
 
 - Packed only `5kb`
-- Source core code within `200` lines
+- Source core code within `200` lines (include type annotations)
 - Obvious Responsiveness
 - Easy to use function component patterns
 - Zero directive need learn
@@ -45,6 +45,7 @@ a lightweight / reactivity web framework
   setInterval(() => (timeStr.value = new Date().toLocaleString()), 1000);
 
   const app = rh('h1', {}, ...kit.rt`hello world, now: ${() => timeStr.value}`);
+  // app just a HTML element
   document.querySelector('#app').appendChild(app);
 </script>
 ```
