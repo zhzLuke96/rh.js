@@ -38,13 +38,13 @@ a lightweight / reactivity web framework
 <script type="module">
   import {
     rh,
-    kit,
+    tools,
   } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
 
   const timeStr = rh.vR.ref(new Date().toLocaleString());
   setInterval(() => (timeStr.value = new Date().toLocaleString()), 1000);
 
-  const app = rh('h1', {}, ...kit.rt`hello world, now: ${() => timeStr.value}`);
+  const app = rh('h1', {}, tools.rt`hello world, now: ${timeStr}`);
   // app just a HTML element
   document.querySelector('#app').appendChild(app);
 </script>

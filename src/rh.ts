@@ -25,13 +25,13 @@ export type RenderFunc = (props?: AnyRecord, ...children: any[]) => rhElem;
 
 type ComponentRender<Ctx> = (ctx: Ctx, ...children: any[]) => rhElem;
 type ComponentSetup<Props, Ctx> = (props: Props, ...children: any[]) => Ctx;
-export type Component<Props extends AnyRecord = AnyRecord, Ctx = any> = {
+export type SetupComponent<Props extends AnyRecord = AnyRecord, Ctx = any> = {
   setup: ComponentSetup<Props, Ctx>;
   render: ComponentRender<Ctx>;
 };
 // *JUST TS Syntactic sugar
 const component = <Props extends AnyRecord = AnyRecord, Ctx = any>(
-  comp: Component<Props, Ctx>
+  comp: SetupComponent<Props, Ctx>
 ) => comp;
 
 export type FunctionComponent<Props extends AnyRecord = AnyRecord> = (
@@ -112,7 +112,7 @@ function buildFunctionComponent(
   return execRender(() => render());
 }
 function buildComponent(
-  { setup, render }: Component,
+  { setup, render }: SetupComponent,
   props = {} as AnyRecord,
   ...children: any[]
 ) {
@@ -157,7 +157,7 @@ function createElement(
 }
 const mount = (
   selector: string,
-  funcOrComp: FunctionComponent | Component | Node
+  funcOrComp: FunctionComponent | SetupComponent | Node
 ) => {
   const container = document.querySelector(selector);
   if (typeof funcOrComp === 'function') {
@@ -180,10 +180,11 @@ const mount = (
  * reactivity hydrate
  */
 export const rh = (
-  one: string | FunctionComponent | Component | Element,
+  one: string | FunctionComponent | SetupComponent | Element,
   props = {} as AnyRecord,
   ...children: any[]
 ) => {
+  children = children?.flat() || children;
   if (typeof one === 'string') {
     return createElement(one, props, ...children);
   } else if (typeof one === 'function') {

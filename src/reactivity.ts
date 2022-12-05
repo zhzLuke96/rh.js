@@ -4,6 +4,7 @@ import {
   enableTracking,
   pauseTracking,
   resetTracking,
+  ref,
 } from '@vue/reactivity';
 
 export const skip = <RET = unknown>(fn: () => RET) => {
@@ -31,4 +32,15 @@ export const watch = <Value>(
     skip(() => effectFn(val, prev_value));
     prev_value = val;
   }, options);
+};
+
+export const computed = <Value = unknown, Ret = Value>(
+  valueFn: () => Value,
+  pipeFn?: (val: Value) => Ret
+) => {
+  const computedValue = ref<Ret>();
+  watch(valueFn, (val) => {
+    computedValue.value = (pipeFn ? pipeFn(val) : val) as any;
+  });
+  return computedValue;
 };
