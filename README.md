@@ -8,7 +8,7 @@ a lightweight / reactivity web framework
 
 **SURPRISE:**
 
-- Packed only `~10kb`
+- Packed only `< 9kb`
 - Source core code within `300` lines (include type annotations)
 - Obvious Responsiveness
 - Easy to use function component patterns
@@ -28,7 +28,6 @@ a lightweight / reactivity web framework
 - [Related Efforts](#related-efforts)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
-  - [publish](#publish)
 - [LICENSE](#license)
 
 <a name="quick-start"></a>
@@ -147,11 +146,6 @@ Target environments are Chrome, Firefox, Safari.If you need to adapt a low-level
 
 Feel free to dive in! [Open an issue](https://github.com/zhzLuke96/rh.js/issues/new) or submit PRs.
 
-## publish
-
-```
-npm publish --access public
-```
 
 # LICENSE
 
