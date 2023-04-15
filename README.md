@@ -8,8 +8,8 @@ a lightweight / reactivity web framework
 
 **SURPRISE:**
 
-- Packed only `5kb`
-- Source core code within `200` lines (include type annotations)
+- Packed only `~10kb`
+- Source core code within `300` lines (include type annotations)
 - Obvious Responsiveness
 - Easy to use function component patterns
 - Zero directive need learn
@@ -18,14 +18,17 @@ a lightweight / reactivity web framework
 
 # Table of Contents
 
+- [rh.js](#rhjs)
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
+  - [Component](#component)
 - [Playground](#playground)
 - [Roadmap](#roadmap)
 - [Brower Support](#brower-support)
 - [Related Efforts](#related-efforts)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
+  - [publish](#publish)
 - [LICENSE](#license)
 
 <a name="quick-start"></a>

@@ -1,33 +1,45 @@
-import { rh } from '../rh';
+import { ref } from '@vue/reactivity';
+import { source_stack } from '../ComponentSource';
+import { rh, rhElem } from '../rh';
 
 /**
  * Error Boundary
  */
 export const ErrorBoundary = rh.component({
   setup({
-    tagName = 'div',
-    fallback,
+    fallbackRender,
     onError,
-    ...props
+    render,
   }: {
-    tagName?: string;
-    fallback?: Element;
+    fallbackRender: (error: Error, rerender: () => any) => rhElem;
     onError?: (error: Error) => void;
-    [K: string]: any;
+    render: () => rhElem;
   }) {
-    const container = document.createElement(tagName);
-    const fallbackNode = fallback || document.createTextNode('');
-    container.addEventListener('rh-err', (ev: any) => {
-      onError?.(ev.detail);
-      container.innerHTML = '';
-      container.appendChild(fallbackNode);
+    const self_source = source_stack.peek();
+    let catchError = ref(null as null | Error);
+    self_source?.on('throw', (detail: any) => {
+      if (detail instanceof Error) {
+        onError?.(detail);
+        catchError.value = detail;
+      }
     });
+    const rerenderRef = ref(1);
     return {
-      container,
-      props,
+      catchError,
+      rerenderRef,
+      fallbackRender,
+      childrenRender: render,
     };
   },
-  render({ props, container }, ...children) {
-    return rh(container, props, ...children);
+  render({ fallbackRender, rerenderRef, catchError, childrenRender }) {
+    [rerenderRef.value];
+    const rerender = () => {
+      rerenderRef.value = Date.now();
+      catchError.value = null;
+    };
+    const children = childrenRender();
+    return catchError.value
+      ? fallbackRender(catchError.value, rerender)
+      : children;
   },
 });

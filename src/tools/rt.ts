@@ -1,4 +1,5 @@
-import { effect, isRef, Ref } from '@vue/reactivity';
+import { isRef, Ref } from '@vue/reactivity';
+import { hookEffect } from '../ComponentSource';
 
 /**
  * reactivity text node
@@ -14,11 +15,12 @@ export const rt = (
     const slot = slots[idx];
     const slotNode = document.createTextNode('');
     if (typeof slot === 'function') {
-      effect(() => (slotNode.textContent = slot()));
+      hookEffect(() => (slotNode.textContent = slot()));
     } else if (isRef(slot)) {
-      effect(() => (slotNode.textContent = String(slot.value)));
+      hookEffect(() => (slotNode.textContent = String(slot.value)));
     }
     ret.push(slotNode);
   }
   return ret;
 };
+export const rText = rt;

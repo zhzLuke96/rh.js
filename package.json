@@ -49,6 +49,7 @@
   "homepage": "https://github.com/zhzLuke96/rh.js#readme",
   "dependencies": {
     "@vue/reactivity": "^3.2.37",
+    "eventemitter3": "^5.0.0",
     "fast-deep-equal": "^3.1.3"
   }
 }

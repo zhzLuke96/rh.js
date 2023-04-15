@@ -1,8 +1,10 @@
-import { effect } from '@vue/reactivity';
+import { hookEffect } from '../ComponentSource';
 import { rh } from '../rh';
 
 /**
  * reactivity html
+ *
+ * This is a very simple implementation and should not be used in production, just to demonstrate one possible usage
  */
 export const rHtml = (
   strings: TemplateStringsArray,
@@ -22,6 +24,7 @@ export const rHtml = (
         const slot = slots.find((x) => x.flag === attribute.value);
         if (slot) {
           props[attribute.name] = slot.fn;
+          dom.removeAttribute(attribute.name);
         }
       }
       rh(dom, props);
@@ -30,7 +33,7 @@ export const rHtml = (
     if (dom instanceof Text) {
       const slot = slots.find((x) => x.flag === dom.textContent?.trim());
       if (slot) {
-        effect(() => (dom.textContent = slot.fn()));
+        hookEffect(() => (dom.textContent = slot.fn()));
       }
     }
   };

@@ -1,7 +1,7 @@
-import { effect, ref, shallowRef } from '@vue/reactivity';
+import { shallowRef } from '@vue/reactivity';
 import { Fragment } from './Fragment';
 import { rh } from '../rh';
-import { skip, unskip, watch } from '../reactivity';
+import { watch } from '../reactivity';
 import * as equal from 'fast-deep-equal';
 
 /**
@@ -29,7 +29,7 @@ interface MapProps<T> {
 }
 
 /**
- * MapList Component
+ * ArrayRender Component
  *
  * diff render for list data
  */
@@ -40,8 +40,6 @@ export const ArrayRender = <T>({
     a: T,
     b: T
   ) => boolean,
-  // TODO enable props for component
-  ...props
 }: MapProps<T>) => {
   const itemNodesRef = shallowRef<
     { data: T; node: HTMLElement; del?: boolean }[]

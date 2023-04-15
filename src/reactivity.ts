@@ -1,11 +1,11 @@
 import {
-  effect,
   ReactiveEffectOptions,
   enableTracking,
   pauseTracking,
   resetTracking,
   ref,
 } from '@vue/reactivity';
+import { hookEffect } from './ComponentSource';
 
 export const skip = <RET = unknown>(fn: () => RET) => {
   pauseTracking();
@@ -27,7 +27,7 @@ export const watch = <Value>(
   options?: ReactiveEffectOptions | undefined
 ) => {
   let prev_value = undefined as undefined | Value;
-  effect(() => {
+  return hookEffect(() => {
     const val = valueFn();
     skip(() => effectFn(val, prev_value));
     prev_value = val;

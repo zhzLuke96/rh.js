@@ -1,3 +1,4 @@
+import { onUnmount, source_stack } from '../ComponentSource';
 import { rh } from '../rh';
 
 /**
@@ -5,32 +6,21 @@ import { rh } from '../rh';
  */
 export const Portal = (
   {
-    container: useContainer,
+    container: target_container,
     ...props
   }: { container?: HTMLElement; [K: string]: any },
   ...children: any
 ) => {
   const marker = document.createTextNode('');
 
-  const container: HTMLElement = useContainer || document.createElement('div');
-  if (!useContainer) {
-    document.body.appendChild(container);
-  }
+  const container: HTMLElement =
+    target_container || document.createElement('div');
+  document.body.appendChild(container);
   // same appendChild, but parse props
   rh(container, props, ...children);
 
-  marker.addEventListener('cleanup', () => {
+  onUnmount(() => {
     container.parentElement?.removeChild(container);
-  });
-  container.addEventListener('rh-err', (ev: any) => {
-    marker.dispatchEvent(
-      new CustomEvent('rh-err', {
-        detail: ev.detail,
-        bubbles: true,
-        composed: false,
-      })
-    );
-    ev.stopPropagation();
   });
 
   return () => marker;
