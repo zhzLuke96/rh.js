@@ -4,17 +4,17 @@
 [![language](https://img.shields.io/github/languages/top/zhzluke96/rh.js)](https://github.com/zhzLuke96/rh.js)
 [![version](https://img.shields.io/github/package-json/v/zhzluke96/rh.js)](https://github.com/zhzLuke96/rh.js)
 
-a lightweight / reactivity web framework
+🧩 Lightweight & Powerful framework
 
-**SURPRISE:**
+**FEATURES:**
 
 - Packed only `< 9kb`
-- Source core code within `300` lines (include type annotations)
-- Obvious Responsiveness
+- Source core code within `300` lines (including type annotations)
+- Based on `@vue/reactivity`
 - Easy to use function component patterns
-- Zero directive need learn
-- Zero syntax need learn
-- Zero pro algo need magic
+- Not extras syntax, all in js. 
+- Not required complex algo / magic, no VDom and always dom.
+- JSX style, fit engineering
 
 # Table of Contents
 
