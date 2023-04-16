@@ -150,4 +150,4 @@ Feel free to dive in! [Open an issue](https://github.com/zhzLuke96/rh.js/issues/
 
 # LICENSE
 
-Code is licensed under the [MIT License](./LICENSE).
+Code is licensed under the [Apache License 2.0](./LICENSE).
