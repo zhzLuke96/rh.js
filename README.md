@@ -22,8 +22,7 @@ a lightweight / reactivity web framework
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
   - [Component](#component)
-- [Playground](#playground)
-- [Roadmap](#roadmap)
+- [Demos](#demos)
 - [Brower Support](#brower-support)
 - [Related Efforts](#related-efforts)
 - [Maintainers](#maintainers)
@@ -115,16 +114,8 @@ FC
 </script>
 ```
 
-# Playground
-
-🚧WIP
-
-# Roadmap
-
-- [x] v0.0.1
-- [ ] more demo
-- [ ] WebComponents support
-- [ ] svg support
+# Demos
+https://zhzluke96.github.io/rhjs-demos/
 
 # Brower Support
 
