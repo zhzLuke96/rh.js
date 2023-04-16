@@ -7,6 +7,8 @@ import {
 } from '@vue/reactivity';
 import { hookEffect } from './ComponentSource';
 
+export * as reactivity from '@vue/reactivity';
+
 export const skip = <RET = unknown>(fn: () => RET) => {
   pauseTracking();
   const ret = fn();

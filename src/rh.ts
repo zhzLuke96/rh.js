@@ -277,7 +277,6 @@ export const rh = (
     return buildComponent(one, props, ...children);
   }
 };
-rh.vR = vR;
 rh.mount = mount;
 rh.component = component;
 rh.createThrowAny = createThrowAny;
