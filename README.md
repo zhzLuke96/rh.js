@@ -23,7 +23,7 @@
 - [Quick Start](#quick-start)
   - [Component](#component)
 - [Demos](#demos)
-- [Brower Support](#brower-support)
+- [Browser Support](#browser-support)
 - [Related Efforts](#related-efforts)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -120,7 +120,7 @@ FC
 # Demos
 https://zhzluke96.github.io/rhjs-demos/
 
-# Brower Support
+# Browser Support
 
 Target environments are Chrome, Firefox, Safari.If you need to adapt a low-level browser environment, following PreProcessors and polyfill are recommended:
 
