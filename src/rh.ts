@@ -3,7 +3,6 @@ import { skip } from './reactivity';
 import {
   ComponentSource,
   source_stack,
-  global_source,
   hookEffect,
   newComponentSource,
 } from './ComponentSource';
@@ -244,7 +243,7 @@ const mount = (
 /**
  * hook component into ComponentSource
  */
-export const hookComponent = <T extends FunctionComponent | SetupComponent>(
+const hookComponent = <T extends FunctionComponent | SetupComponent>(
   component: T,
   hookCallback: (cs: ComponentSource) => any
 ): T => {
@@ -252,7 +251,7 @@ export const hookComponent = <T extends FunctionComponent | SetupComponent>(
   return component;
 };
 
-export const createThrowAny = () => {
+const createThrowAny = () => {
   const self_source = source_stack.peek();
   return (val: any) => self_source?.emit('throw', val);
 };

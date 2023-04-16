@@ -1,4 +1,4 @@
-import { onUnmount, source_stack } from '../ComponentSource';
+import { onUnmount } from '../ComponentSource';
 import { rh } from '../rh';
 
 /**

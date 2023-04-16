@@ -1,5 +1,5 @@
 import { Stack } from '../misc';
-import { SetupComponent, FunctionComponent, hookComponent } from '../rh';
+import { SetupComponent, FunctionComponent, rh } from '../rh';
 
 type RhComponent = FunctionComponent | SetupComponent;
 type ContextObject = Record<string, any>;
@@ -36,7 +36,7 @@ export function inject(key: string, value: any) {
 }
 
 export const contextify = <T extends RhComponent>(component: T): T =>
-  hookComponent(component, (cs) => {
+  rh.hookComponent(component, (cs) => {
     let component_context = create_ctx();
     cs.on('setup_before', () => {
       ctx_stack.push(component_context);
