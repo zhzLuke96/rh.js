@@ -13,7 +13,8 @@
   ],
   "files": [
     "dist/**.js*",
-    "dist/**/*.ts"
+    "dist/**/*.ts",
+    "types/**/*.ts"
   ],
   "scripts": {
     "build": "microbundle --external none --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
