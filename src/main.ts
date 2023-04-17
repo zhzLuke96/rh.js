@@ -3,9 +3,10 @@ export * as builtin from './builtin';
 export { rh } from './rh';
 export * as utils from './reactivity';
 export * as cs from './ComponentSource';
+export * as reactivity from '@vue/reactivity';
 
 // export types
-export {
+export type {
   FunctionComponent,
   SetupComponent,
   rhElem,

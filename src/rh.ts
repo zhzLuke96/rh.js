@@ -109,7 +109,7 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
         // *Because the marker is rendered without a parent the first time, it sends an error to the body by default
         cs.emit('throw', error);
         console.error(error);
-        cs.emit('update_after', error);
+        cs.emit('update_after', <any>error);
         return;
       }
       container = container || currentView.parentElement || maker.parentElement;
@@ -141,7 +141,7 @@ function buildFunctionComponent(
   props = {} as AnyRecord,
   ...children: any[]
 ) {
-  const hookCallback = fn[symbols.HOOK_CB];
+  const hookCallback = (<any>fn)[symbols.HOOK_CB];
   const cs = newComponentSource(source_stack.peek());
   if (typeof hookCallback === 'function') {
     hookCallback(cs);
@@ -162,7 +162,7 @@ function buildComponent(
   ...children: any[]
 ) {
   const { setup, render } = component;
-  const hookCallback = component[symbols.HOOK_CB];
+  const hookCallback = (<any>component)[symbols.HOOK_CB];
   const cs = newComponentSource(source_stack.peek());
   if (typeof hookCallback === 'function') {
     hookCallback(cs);
@@ -259,7 +259,7 @@ const hookComponent = <T extends FunctionComponent | SetupComponent>(
   component: T,
   hookCallback: (cs: ComponentSource) => any
 ): T => {
-  component[symbols.HOOK_CB] = hookCallback;
+  (<any>component)[symbols.HOOK_CB] = hookCallback;
   return component;
 };
 

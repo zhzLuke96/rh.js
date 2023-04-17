@@ -4,9 +4,14 @@
   "version": "0.0.12",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
-  "module": "dist/main.modern.module.js",
+  "module": "dist/main.modern.mjs",
   "unpkg": "dist/main.umd.js",
-  "types": "dist/main.d.ts",
+  "types": "./dist/main.d.ts",
+  "exports": {
+    "types": "./dist/main.d.ts",
+    "require": "./dist/main.js",
+    "default": "./dist/main.modern.mjs"
+  },
   "keywords": [
     "microbundle",
     "typescript"
@@ -17,18 +22,21 @@
     "types/**/*.ts"
   ],
   "scripts": {
+    "pack-dts": "rollup -c rollup.dts.config.js",
     "build": "microbundle --external none --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
     "watch": "microbundle watch --external none --define process.env.NODE_ENV=development,PKG_VERSION=$npm_package_version --compress false",
     "dev": "yarn watch",
     "start": "yarn build",
     "lint": "prettier src -c",
     "format": "prettier src --write",
-    "prepack": "rm -rf dist && npm run build",
-    "release": "npm run prepack && npm publish --access public"
+    "prepack": "rm -rf dist && yarn run build && yarn run pack-dts",
+    "release": "yarn run prepack && yarn publish --access public"
   },
   "devDependencies": {
     "microbundle": "^0.15.1",
-    "prettier": "^2.6.2"
+    "prettier": "^2.6.2",
+    "rollup": "^3.20.4",
+    "rollup-plugin-dts": "^5.3.0"
   },
   "prettier": {
     "singleQuote": true
