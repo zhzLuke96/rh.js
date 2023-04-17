@@ -3,15 +3,15 @@ import { effect, ReactiveEffectOptions } from '@vue/reactivity';
 import { Stack } from './misc';
 
 export type ComponentSource = EventEmitter<{
-  mount: () => any;
-  update: () => any;
-  unmount: () => any;
-  throw: (value?: any) => any;
+  mount: (error?: Error) => any; // once
+  update: () => any; // many
+  unmount: () => any; // once
+  throw: (value?: any) => any; // many or zero
 
-  update_before: () => any;
-  update_after: () => any;
-  setup_before: () => any;
-  setup_after: () => any;
+  update_before: () => any; // many
+  update_after: (error?: Error) => any; // many
+  setup_before: () => any; // many
+  setup_after: () => any; // many
 }> & { __parent_source?: ComponentSource };
 
 export let global_source: ComponentSource;

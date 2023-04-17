@@ -1,18 +1,28 @@
 import { NestedCSSProperties, rStyle } from '../tools/rStyle';
-import { rh } from '../rh';
+import { FC, rh } from '../rh';
 import { onUnmount } from '../ComponentSource';
+
+type StyleFn = () => NestedCSSProperties;
+type StyleComponent = FC<
+  {
+    styleFn?: StyleFn;
+    [k: string]: any;
+  },
+  [StyleFn | void]
+>;
 
 /**
  * Adaptive nested css style definition components
  */
-export const Style = ({
-  styleFn,
-  ...props
-}: {
-  styleFn: () => NestedCSSProperties;
-  [k: string]: any;
-}) => {
-  const { className, dom } = rStyle(styleFn);
+export const Style: StyleComponent = (
+  { styleFn, ...props },
+  childrenStyleFn
+) => {
+  const _styleFn =
+    styleFn ||
+    childrenStyleFn ||
+    (() => ({ '--required-style-function': '1' }));
+  const { className, dom } = rStyle(_styleFn);
   // WARN 这个事件其实已经废弃了，但是...还是可以用，每个浏览器基本都实现了
   // ref: https://caniuse.com/mutation-events
   const eventName = 'DOMNodeInserted';
@@ -36,14 +46,15 @@ export const Style = ({
 /**
  * style for global (inject to html top element)
  */
-export const GlobalStyle = ({
-  styleFn,
-  ...props
-}: {
-  styleFn: () => NestedCSSProperties;
-  [k: string]: any;
-}) => {
-  const { className, dom } = rStyle(styleFn);
+export const GlobalStyle: StyleComponent = (
+  { styleFn, ...props },
+  childrenStyleFn
+) => {
+  const _styleFn =
+    styleFn ||
+    childrenStyleFn ||
+    (() => ({ '--required-style-function': '1' }));
+  const { className, dom } = rStyle(_styleFn);
   document.head.parentElement?.classList.add(className);
   document.head.appendChild(dom);
   onUnmount(() => {

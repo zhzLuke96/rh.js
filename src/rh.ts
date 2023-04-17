@@ -18,29 +18,45 @@ type AnyRecord = Record<string, any>;
 type rhElemRaw = Element | Comment | number | string | boolean | null;
 export type rhElem = rhElemRaw | vR.Ref<rhElemRaw>;
 export type rhView = Element | Comment | null;
-export type RenderFunc = (props?: AnyRecord, ...children: any[]) => rhElem;
+export type RenderFunc<ChildrenList extends any[] = any[]> = (
+  props: AnyRecord,
+  ...children: ChildrenList
+) => rhElem;
 
-type ComponentRender<Ctx> = (ctx: Ctx, ...children: any[]) => rhElem;
-type ComponentSetup<Props, Ctx> = (props: Props, ...children: any[]) => Ctx;
-export type SetupComponent<Props extends AnyRecord = AnyRecord, Ctx = any> = {
-  setup: ComponentSetup<Props, Ctx>;
-  render: ComponentRender<Ctx>;
+type ComponentRender<Ctx, ChildrenList extends any[]> = (
+  ctx: Ctx,
+  ...children: ChildrenList
+) => rhElem;
+type ComponentSetup<Props, Ctx, ChildrenList extends any[]> = (
+  props: Props,
+  ...children: ChildrenList
+) => Ctx;
+export type SetupComponent<
+  Props extends AnyRecord = AnyRecord,
+  Ctx = any,
+  ChildrenList extends any[] = any[]
+> = {
+  setup: ComponentSetup<Props, Ctx, ChildrenList>;
+  render: ComponentRender<Ctx, ChildrenList>;
 };
 // *JUST TS Syntactic sugar
 const component = <Props extends AnyRecord = AnyRecord, Ctx = any>(
   comp: SetupComponent<Props, Ctx>
 ) => comp;
 
-export type FunctionComponent<Props extends AnyRecord = AnyRecord> = (
-  props?: Props,
-  ...children: any[]
-) => () => rhElem;
+export type FunctionComponent<
+  Props extends AnyRecord = AnyRecord,
+  Children extends any[] = any[]
+> = (props: Props, ...children: Children) => () => rhElem;
 // TIPS 可以用，但是...setup和render非常有必要分割开
 // export type ShortFunctionComponent<Props extends AnyRecord = AnyRecord> = (
 //   props?: Props,
 //   ...children: any[]
 // ) => rhElem;
-export type FC<Props extends AnyRecord = AnyRecord> = FunctionComponent<Props>;
+export type FC<
+  Props extends AnyRecord = AnyRecord,
+  ChildrenList extends any[] = any[]
+> = FunctionComponent<Props, ChildrenList>;
 
 export const warpView = (
   view: rhElem,
@@ -74,10 +90,12 @@ export const warpView = (
   return document.createTextNode(`${view}`);
 };
 
-function execRender(render: () => rhElem, cs: ComponentSource) {
+function hydrateRender(render: () => rhElem, cs: ComponentSource) {
   let container = null as HTMLElement | null;
   let maker = document.createTextNode('');
   let currentView = maker as NonNullable<rhView>;
+  // The first update_after is mount
+  cs.once('update_after', (error) => cs.emit('mount', error));
   const runner = effect(
     () => {
       cs.emit('update_before');
@@ -91,7 +109,7 @@ function execRender(render: () => rhElem, cs: ComponentSource) {
         // *Because the marker is rendered without a parent the first time, it sends an error to the body by default
         cs.emit('throw', error);
         console.error(error);
-        cs.emit('update_after');
+        cs.emit('update_after', error);
         return;
       }
       container = container || currentView.parentElement || maker.parentElement;
@@ -139,7 +157,7 @@ function buildFunctionComponent(
     return ret;
   });
   cs.emit('setup_after');
-  return execRender(() => render(), cs);
+  return hydrateRender(() => render(), cs);
 }
 function buildComponent(
   component: SetupComponent,
@@ -156,7 +174,7 @@ function buildComponent(
   const ctx = setup({ ...props, __component_source: cs }, ...children) || {};
   ctx.__component_source = cs;
   cs.emit('setup_after');
-  return execRender(
+  return hydrateRender(
     () => render(ctx, ...children.map((child) => warpView(child, cs))),
     cs
   );
@@ -259,21 +277,29 @@ const createThrowAny = () => {
 /**
  * reactivity hydrate
  */
-export const rh = (
-  one: string | FunctionComponent | SetupComponent | Element,
-  props = {} as AnyRecord,
-  ...children: any[]
+export const rh = <
+  Props extends AnyRecord = AnyRecord,
+  Ctx = any,
+  ChildrenList extends any[] = any[]
+>(
+  one:
+    | string
+    | FunctionComponent<Props, ChildrenList>
+    | SetupComponent<Props, Ctx, ChildrenList>
+    | Element,
+  props = {} as Props,
+  ...children: ChildrenList
 ) => {
-  children = children?.flat() || children;
+  children = <any>(children?.flat() || children);
   if (typeof one === 'string') {
     return createElement(one, props, ...children);
   } else if (typeof one === 'function') {
-    return buildFunctionComponent(one, props, ...children);
+    return buildFunctionComponent(<any>one, props, ...children);
   } else if (one instanceof Element) {
     hydrateElement(one, props, ...children);
     return one;
   } else {
-    return buildComponent(one, props, ...children);
+    return buildComponent(<any>one, props, ...children);
   }
 };
 rh.mount = mount;
