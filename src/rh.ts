@@ -149,10 +149,7 @@ function buildFunctionComponent(
   cs.emit('setup_before');
   const render = skip(() => {
     source_stack.push(cs);
-    const ret = fn(
-      { ...props, __component_source: cs },
-      ...children.map((child) => warpView(child, cs))
-    );
+    const ret = fn({ ...props, __component_source: cs }, ...children);
     source_stack.pop();
     return ret;
   });
@@ -174,10 +171,7 @@ function buildComponent(
   const ctx = setup({ ...props, __component_source: cs }, ...children) || {};
   ctx.__component_source = cs;
   cs.emit('setup_after');
-  return hydrateRender(
-    () => render(ctx, ...children.map((child) => warpView(child, cs))),
-    cs
-  );
+  return hydrateRender(() => render(ctx, ...children), cs);
 }
 function hydrateElement(
   elem: Element,
