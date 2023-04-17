@@ -12,7 +12,7 @@ export type ComponentSource = EventEmitter<{
   update_after: (error?: Error) => any; // many
   setup_before: () => any; // many
   setup_after: () => any; // many
-}> & { __parent_source?: ComponentSource };
+}> & { __parent_source?: ComponentSource; __context: Record<keyof any, any> };
 
 export let global_source: ComponentSource;
 export const newComponentSource = (
@@ -20,6 +20,7 @@ export const newComponentSource = (
 ): ComponentSource => {
   const ret = new EventEmitter() as ComponentSource;
   ret.__parent_source = parent_source;
+  ret.__context = {};
   ret.on('throw', (x) => parent_source?.emit('throw', x));
   return ret;
 };

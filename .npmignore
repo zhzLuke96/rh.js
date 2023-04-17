@@ -30,7 +30,6 @@ webpack.config.js
 webpack.config.esm.js
 
 yarn.lock
-readme.md
 *.md
 local_*/
 *.LICENSE.txt
