@@ -6,7 +6,11 @@ export type NestedCSSProperties = CSSProperties & {
   [k: string]: NestedCSSProperties | CSSProperties[keyof CSSProperties];
 };
 
-function parseCss(css: NestedCSSProperties, rootNode: string, format = false) {
+function parseStyle(
+  css: NestedCSSProperties,
+  rootNode: string,
+  format = false
+) {
   const enter_symbol = format ? '\n' : ' ';
   const stack = [{ node: '.' + rootNode, css: css }];
   let result = '';
@@ -19,7 +23,7 @@ function parseCss(css: NestedCSSProperties, rootNode: string, format = false) {
       const value = css[prop];
       if (typeof value === 'object') {
         const childNode = prop.startsWith('&')
-          ? node + prop.slice(1)
+          ? node + prop.slice(1).replace(/&/g, node)
           : node + ' ' + prop;
         stack.push({ node: childNode, css: value as NestedCSSProperties });
       } else {
@@ -52,7 +56,7 @@ export function rStyle(cssFn: () => NestedCSSProperties) {
   const styleDOM = document.createElement('style');
   hookEffect(() => {
     const css = cssFn();
-    styleDOM.innerHTML = parseCss(css, className);
+    styleDOM.innerHTML = parseStyle(css, className);
   });
   return {
     dom: styleDOM,

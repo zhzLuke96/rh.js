@@ -2,6 +2,24 @@ import { NestedCSSProperties, rStyle } from '../tools/rStyle';
 import { FC, rh } from '../rh';
 import { onUnmount } from '../ComponentSource';
 
+export const onDomInserted = (
+  dom: HTMLElement,
+  fn: (parent: HTMLElement) => any
+) => {
+  // WARN 这个事件其实已经废弃了，但是...还是可以用，每个浏览器基本都实现了
+  // ref: https://caniuse.com/mutation-events
+  const eventName = 'DOMNodeInserted';
+  const handler = (event: any) => {
+    const parent = event.relatedNode;
+    if (parent && parent === dom.parentNode) {
+      fn(parent);
+    }
+  };
+  dom.addEventListener(eventName, handler);
+  // dispose function
+  return () => dom.removeEventListener(eventName, handler);
+};
+
 type StyleFn = () => NestedCSSProperties;
 type StyleComponent = FC<
   {
@@ -33,21 +51,14 @@ export const Style: StyleComponent = (
 ) => {
   const _styleFn = zipStyleFn(styleFn || style || styleOrFunc);
   const { className, dom } = rStyle(_styleFn);
-  // WARN 这个事件其实已经废弃了，但是...还是可以用，每个浏览器基本都实现了
-  // ref: https://caniuse.com/mutation-events
-  const eventName = 'DOMNodeInserted';
   let parentNode: any;
-  const handler = (event: any) => {
-    const parent = event.relatedNode;
-    if (parent && parent === dom.parentNode) {
-      parent.classList.add(className);
-      parentNode?.classList.remove(className);
-      parentNode = parent;
-    }
-  };
-  dom.addEventListener(eventName, handler);
+  const disposeEvent = onDomInserted(dom, (parent) => {
+    parent.classList.add(className);
+    parentNode?.classList.remove(className);
+    parentNode = parent;
+  });
   onUnmount(() => {
-    dom.removeEventListener(eventName, handler);
+    disposeEvent();
     parentNode?.classList.remove(className);
   });
   rh(dom, props);
