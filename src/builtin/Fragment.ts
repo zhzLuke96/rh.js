@@ -1,47 +1,28 @@
-import { ReactiveEffectRunner } from '@vue/reactivity';
 import { hookEffect, source_stack } from '../ComponentSource';
+import { onDomInserted } from '../misc';
 import { rh, rhElem, warpView } from '../rh';
 
 type FragmentChildren = Element | Comment;
-
-const idleRunner = (canRun: () => boolean, runner: () => any) => {
-  const innerRunner = () => {
-    if (canRun()) {
-      runner();
-    } else {
-      requestIdleCallback(innerRunner);
-    }
-  };
-  innerRunner();
-};
 
 /**
  * Fragment Component
  */
 export const Fragment = rh.component({
-  setup(props, innerRender: () => Array<rhElem>) {
-    const ctx = {
+  setup(_, innerRender: () => Array<rhElem>) {
+    const component_context = {
       anchor: document.createTextNode(''),
       children: [] as Array<FragmentChildren>,
+      parentNode: null as null | HTMLElement,
     };
-    let runner: ReactiveEffectRunner;
     const rerender = () => {
-      if (runner && !ctx.anchor.parentElement) {
-        // when anchor removed, do gc
-        runner.effect.stop();
-        return;
-      }
-
       // *must be called before all returns, because to register to the effect
       const newChildren = innerRender()
         .map((child) => warpView(child, source_stack.peek()))
         .filter(Boolean);
 
-      const { children: oldChildren, anchor } = ctx;
-      const container = anchor.parentElement;
-      if (!container) {
-        // FIXME 也许可能重复调用
-        idleRunner(() => !!anchor.parentElement, rerender);
+      const { children: oldChildren, anchor, parentNode } = component_context;
+      if (!parentNode) {
+        // wait anchor insert
         return;
       }
 
@@ -54,18 +35,22 @@ export const Fragment = rh.component({
         if (!newOne && oldOne) {
           oldOne.remove();
         } else if (!oldOne && newOne) {
-          container.insertBefore(newOne, anchor);
+          parentNode.insertBefore(newOne, anchor);
         } else if (oldOne && newOne) {
           if (oldOne === newOne) {
             continue;
           }
-          container.replaceChild(newOne, oldOne);
+          parentNode.replaceChild(newOne, oldOne);
         }
       }
-      ctx.children = newChildren as Array<FragmentChildren>;
+      component_context.children = newChildren as Array<FragmentChildren>;
     };
-    runner = hookEffect(rerender);
-    return ctx;
+    onDomInserted(component_context.anchor, (parent) => {
+      component_context.parentNode = parent;
+      rerender();
+    });
+    hookEffect(rerender);
+    return component_context;
   },
   render(ctx) {
     return ctx.anchor;

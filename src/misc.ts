@@ -29,3 +29,36 @@ export class Stack<T> {
     return this.items.length === 0;
   }
 }
+
+/**
+ * callback on dom inserted
+ *
+ * WARN 这个事件其实已经废弃了，但是...还是可以用，每个浏览器基本都实现了
+ * ref: https://caniuse.com/mutation-events
+ */
+export const onDomInserted = (dom: Node, fn: (parent: HTMLElement) => any) => {
+  const eventName = 'DOMNodeInserted';
+  const handler = (event: any) => {
+    const parent = event.relatedNode;
+    if (parent && parent === dom.parentNode) {
+      fn(parent);
+    }
+  };
+  dom.addEventListener(eventName, handler);
+  // dispose function
+  return () => dom.removeEventListener(eventName, handler);
+};
+
+/**
+ * hack something...
+ */
+export const idleRunner = (canRun: () => boolean, runner: () => any) => {
+  const innerRunner = () => {
+    if (canRun()) {
+      runner();
+    } else {
+      requestIdleCallback(innerRunner);
+    }
+  };
+  innerRunner();
+};

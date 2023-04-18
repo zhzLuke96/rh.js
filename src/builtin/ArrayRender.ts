@@ -4,22 +4,6 @@ import { rh } from '../rh';
 import { watch } from '../reactivity';
 import * as equal from 'fast-deep-equal';
 
-/**
- * TODO quick diff for ArrayRender
- */
-function quickDiff<T>(params: {
-  new_arr: Array<T>;
-  old_arr: Array<T>;
-  is_same_item: (a: T, b: T) => boolean;
-
-  patch: (a: T, b: T) => any;
-  mount: (a: T, b: T) => any;
-  unmount: (a: T, b: T) => any;
-}) {
-  // 现在看好像完全没必要做复杂的diff
-  // 或者说diff可以完全由用户控制，在arrayRender的getItems中
-}
-
 interface MapProps<T> {
   getItems: () => T[];
   render: (item: T, idx: number, arr: T[], elem?: HTMLElement) => HTMLElement;

@@ -1,24 +1,7 @@
-import { NestedCSSProperties, rStyle } from '../tools/rStyle';
+import { NestedCSSProperties, rGlobalStyle, rStyle } from '../tools/rStyle';
 import { FC, rh } from '../rh';
 import { onUnmount } from '../ComponentSource';
-
-export const onDomInserted = (
-  dom: HTMLElement,
-  fn: (parent: HTMLElement) => any
-) => {
-  // WARN 这个事件其实已经废弃了，但是...还是可以用，每个浏览器基本都实现了
-  // ref: https://caniuse.com/mutation-events
-  const eventName = 'DOMNodeInserted';
-  const handler = (event: any) => {
-    const parent = event.relatedNode;
-    if (parent && parent === dom.parentNode) {
-      fn(parent);
-    }
-  };
-  dom.addEventListener(eventName, handler);
-  // dispose function
-  return () => dom.removeEventListener(eventName, handler);
-};
+import { onDomInserted } from '../misc';
 
 type StyleFn = () => NestedCSSProperties;
 type StyleComponent = FC<
@@ -73,13 +56,7 @@ export const GlobalStyle: StyleComponent = (
   styleOrFunc
 ) => {
   const _styleFn = zipStyleFn(styleFn || style || styleOrFunc);
-  const { className, dom } = rStyle(_styleFn);
-  document.head.parentElement?.classList.add(className);
-  document.head.appendChild(dom);
-  onUnmount(() => {
-    document.head.parentElement?.classList.remove(className);
-    document.head.removeChild(dom);
-  });
+  const { dom } = rGlobalStyle(_styleFn);
   rh(dom, props);
   return () => dom;
 };

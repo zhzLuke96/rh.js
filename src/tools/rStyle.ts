@@ -1,3 +1,4 @@
+import { isRef } from '@vue/reactivity';
 import { hookEffect } from '../ComponentSource';
 
 type CSSProperties = Partial<CSSStyleDeclaration>;
@@ -12,7 +13,7 @@ function parseStyle(
   format = false
 ) {
   const enter_symbol = format ? '\n' : ' ';
-  const stack = [{ node: '.' + rootNode, css: css }];
+  const stack = [{ node: rootNode, css: css }];
   let result = '';
 
   while (stack.length > 0) {
@@ -56,10 +57,35 @@ export function rStyle(cssFn: () => NestedCSSProperties) {
   const styleDOM = document.createElement('style');
   hookEffect(() => {
     const css = cssFn();
-    styleDOM.innerHTML = parseStyle(css, className);
+    styleDOM.innerHTML = parseStyle(css, `.${className}`);
   });
   return {
     dom: styleDOM,
     className,
+  };
+}
+
+/**
+ * reactivity style dom for global styles
+ */
+export function rGlobalStyle(cssFn: () => NestedCSSProperties) {
+  const styleDOM = document.createElement('style');
+  const effectFn = () => {
+    const css = cssFn();
+    const rootStyleCss = Object.fromEntries(
+      Object.entries(css).filter(([_, x]) => typeof x !== 'object')
+    );
+    const rootStyleText = parseStyle(<any>rootStyleCss, ':root');
+    const subStyleCss = Object.entries(css)
+      .filter(([_, x]) => typeof x === 'object')
+      .map(([k, v]) => parseStyle(<any>v, k))
+      .join('\n');
+
+    const fullText = `${rootStyleText}\n${subStyleCss}`;
+    styleDOM.innerHTML = fullText;
+  };
+  hookEffect(effectFn);
+  return {
+    dom: styleDOM,
   };
 }

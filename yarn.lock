@@ -2379,7 +2379,7 @@ merge-stream@^2.0.0:
 
 microbundle@^0.15.1:
   version "0.15.1"
-  resolved "https://registry.npmmirror.com/microbundle/-/microbundle-0.15.1.tgz"
+  resolved "https://registry.npmmirror.com/microbundle/-/microbundle-0.15.1.tgz#3fa67128934b31736823b5c868dae4b92d94e766"
   integrity sha512-aAF+nwFbkSIJGfrJk+HyzmJOq3KFaimH6OIFBU6J2DPjQeg1jXIYlIyEv81Gyisb9moUkudn+wj7zLNYMOv75Q==
   dependencies:
     "@babel/core" "^7.12.10"
