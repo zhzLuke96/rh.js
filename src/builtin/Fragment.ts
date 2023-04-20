@@ -1,4 +1,4 @@
-import { source_stack } from '../ComponentSource';
+import { onUnmount, source_stack } from '../ComponentSource';
 import { onDomInserted } from '../misc';
 import { rh, warpView } from '../rh';
 
@@ -12,15 +12,13 @@ export const Fragment = rh.component({
       .map((child) => warpView(child, source_stack.peek()))
       .filter(Boolean);
     onDomInserted(anchor, (parentNode) => {
-      if (!parentNode) {
-        // wait anchor insert
-        return;
-      }
-      for (const view of children_views) {
-        if (view) {
-          parentNode.insertBefore(view, anchor);
-        }
-      }
+      children_views.forEach(
+        (view) => view && parentNode.insertBefore(view, anchor)
+      );
+    });
+    onUnmount(() => {
+      children_views.forEach((view) => view?.remove());
+      anchor.remove();
     });
     return { anchor };
   },
