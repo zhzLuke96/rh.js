@@ -1,5 +1,5 @@
-import { onUnmount, source_stack } from '../ComponentSource';
-import { onDomInserted } from '../misc';
+import { onUnmount, source_stack, useCS } from '../ComponentSource';
+import { createAnchor } from '../misc';
 import { rh, warpView } from '../rh';
 
 /**
@@ -7,18 +7,21 @@ import { rh, warpView } from '../rh';
  */
 export const Fragment = rh.component({
   setup(_, ...children: any[]) {
-    const anchor = document.createTextNode('');
     const children_views = children
       .map((child) => warpView(child, source_stack.peek()))
       .filter(Boolean);
-    onDomInserted(anchor, (parentNode) => {
+    const anchor = createAnchor((parentNode) => {
       children_views.forEach(
         (view) => view && parentNode.insertBefore(view, anchor)
       );
     });
-    onUnmount(() => {
-      children_views.forEach((view) => view?.remove());
-      anchor.remove();
+    useCS((cs) => {
+      cs.__parent_source?.once('update_before', () => {
+        children_views.forEach((view) => view?.remove());
+        cs.__parent_source?.once('update_after', () => {
+          anchor.remove();
+        });
+      });
     });
     return { anchor };
   },

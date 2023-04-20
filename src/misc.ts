@@ -49,6 +49,12 @@ export const onDomInserted = (dom: Node, fn: (parent: HTMLElement) => any) => {
   return () => dom.removeEventListener(eventName, handler);
 };
 
+export const createAnchor = (fn?: (parent: HTMLElement) => any, text = '') => {
+  const dom = document.createTextNode(text);
+  fn && onDomInserted(dom, fn);
+  return dom;
+};
+
 /**
  * hack something...
  */

@@ -6,6 +6,7 @@ import {
   hookEffect,
   newComponentSource,
 } from './ComponentSource';
+import { onDomInserted } from './misc';
 
 const { effect } = vR;
 
@@ -96,39 +97,40 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
   let currentView = maker as NonNullable<rhView>;
   // The first update_after is mount
   cs.once('update_after', (error) => cs.emit('mount', error));
-  const runner = effect(
-    () => {
-      cs.emit('update_before');
-      let nextView: NonNullable<rhView>;
-      try {
-        source_stack.push(cs);
-        cs.emit('update');
-        nextView = warpView(render(), cs) || maker;
-        source_stack.pop();
-      } catch (error) {
-        // *Because the marker is rendered without a parent the first time, it sends an error to the body by default
-        cs.emit('throw', error);
-        console.error(error);
-        cs.emit('update_after', <any>error);
-        return;
-      }
-      container = container || currentView.parentElement || maker.parentElement;
-      if (currentView.parentElement === container) {
-        container?.replaceChild(nextView, currentView);
-      } else if (nextView instanceof Text && currentView instanceof Text) {
-        currentView.textContent = nextView.textContent;
-        rmElem(maker);
-        return;
-      } else {
-        container?.appendChild(nextView);
-      }
-      rmElem(currentView);
-      rmElem(maker);
-      currentView = nextView;
-      cs.emit('update_after');
-    },
-    { lazy: false }
-  );
+
+  const renderEffectFn = () => {
+    cs.emit('update_before');
+    let nextView: NonNullable<rhView>;
+    try {
+      source_stack.push(cs);
+      cs.emit('update');
+      nextView = warpView(render(), cs) || maker;
+      source_stack.pop();
+    } catch (error) {
+      // *Because the marker is rendered without a parent the first time, it sends an error to the body by default
+      cs.emit('throw', error);
+      console.error(error);
+      cs.emit('update_after', <any>error);
+      return;
+    }
+    if (!container) {
+      return;
+    }
+    if (currentView.parentElement === container) {
+      container.replaceChild(nextView, currentView);
+    } else {
+      container.appendChild(nextView);
+    }
+    rmElem(currentView);
+    rmElem(maker);
+    currentView = nextView;
+    cs.emit('update_after');
+  };
+  const runner = effect(renderEffectFn);
+  onDomInserted(maker, (parent) => {
+    container = parent;
+    runner.effect.run();
+  });
   cs.__parent_source?.once('update', () => cs.emit('unmount'));
   cs.once('unmount', () => {
     runner.effect.stop();

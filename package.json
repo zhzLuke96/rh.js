@@ -26,7 +26,7 @@
     "pack-dts": "rollup -c rollup.dts.config.js",
     "build": "microbundle --external none --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
     "watch": "microbundle watch --external none --define process.env.NODE_ENV=development,PKG_VERSION=$npm_package_version --compress false",
-    "dev": "yarn watch",
+    "dev": "rm -rf dist && yarn watch",
     "start": "yarn build",
     "lint": "prettier src -c",
     "format": "prettier src --write",
@@ -36,7 +36,7 @@
   "devDependencies": {
     "microbundle": "^0.15.1",
     "prettier": "^2.6.2",
-    "rollup": "^3.20.4",
+    "rollup": "^2.35.1",
     "rollup-plugin-dts": "^5.3.0"
   },
   "prettier": {

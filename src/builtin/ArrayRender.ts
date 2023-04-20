@@ -51,8 +51,10 @@ export const ArrayRender = <T>({
     itemNodesRef.value = nextItemNodes;
   });
 
-  const innerRender = () =>
-    itemNodesRef.value.filter((x) => !x.del).map((x) => x.node);
-
-  return () => rh(Fragment, {}, innerRender as any);
+  return () =>
+    rh(
+      Fragment,
+      {},
+      ...itemNodesRef.value.filter((x) => !x.del).map((x) => x.node)
+    );
 };
