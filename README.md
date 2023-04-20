@@ -23,7 +23,6 @@
 - [Quick Start](#quick-start)
   - [Component](#component)
 - [Demos](#demos)
-- [Browser Support](#browser-support)
 - [Related Efforts](#related-efforts)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -118,14 +117,7 @@ FC
 ```
 
 # Demos
-https://zhzluke96.github.io/rhjs-demos/
-
-# Browser Support
-
-Target environments are Chrome, Firefox, Safari.If you need to adapt a low-level browser environment, following PreProcessors and polyfill are recommended:
-
-- [babel](https://github.com/babel/babel) Babel is a compiler for writing next generation JavaScript.
-- [webcomponentsjs](https://github.com/webcomponents/polyfills/tree/master/packages/webcomponentsjs) v1 spec polyfills
+https://zhzluke96.github.io/rhjs-demos/#demo
 
 # Related Efforts
 
