@@ -1,4 +1,4 @@
-import { hookEffect, source_stack, useCS } from '../ComponentSource';
+import { hookEffect, onUnmount, source_stack, useCS } from '../ComponentSource';
 import { onDomInserted } from '../misc';
 import { rh, warpView } from '../rh';
 
@@ -56,10 +56,11 @@ export const Fragment = rh.component({
     };
 
     hookEffect(childrenRender);
-    onDomInserted(component_context.anchor, (parent) => {
+    const disposeEvent = onDomInserted(component_context.anchor, (parent) => {
       component_context.parentNode = parent;
       childrenRender();
     });
+    onUnmount(disposeEvent);
 
     useCS((cs) => {
       cs.__parent_source?.once('update_before', () => {

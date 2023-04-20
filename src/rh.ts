@@ -126,7 +126,7 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
     cs.emit('update_after');
   };
   const runner = effect(renderEffectFn, { lazy: true });
-  onDomInserted(maker, (parent) => {
+  const disposeEvent = onDomInserted(maker, (parent) => {
     container = parent;
     runner.effect.run();
   });
@@ -135,6 +135,7 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
     cs.__parent_source?.once('update_after', () => currentView.remove());
   });
   cs.once('unmount', () => {
+    disposeEvent();
     runner.effect.stop();
     cs.removeAllListeners();
   });
