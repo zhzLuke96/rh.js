@@ -113,25 +113,27 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
       cs.emit('update_after', <any>error);
       return;
     }
-    if (!container) {
-      return;
+    if (container) {
+      if (currentView.parentElement === container) {
+        container.replaceChild(nextView, currentView);
+      } else {
+        container.appendChild(nextView);
+      }
+      rmElem(currentView);
+      rmElem(maker);
+      currentView = nextView;
     }
-    if (currentView.parentElement === container) {
-      container.replaceChild(nextView, currentView);
-    } else {
-      container.appendChild(nextView);
-    }
-    rmElem(currentView);
-    rmElem(maker);
-    currentView = nextView;
     cs.emit('update_after');
   };
-  const runner = effect(renderEffectFn);
+  const runner = effect(renderEffectFn, { lazy: true });
   onDomInserted(maker, (parent) => {
     container = parent;
     runner.effect.run();
   });
-  cs.__parent_source?.once('update', () => cs.emit('unmount'));
+  cs.__parent_source?.once('update_before', () => {
+    cs.emit('unmount');
+    cs.__parent_source?.once('update_after', () => currentView.remove());
+  });
   cs.once('unmount', () => {
     runner.effect.stop();
     cs.removeAllListeners();

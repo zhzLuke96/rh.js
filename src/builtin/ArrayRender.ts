@@ -52,9 +52,7 @@ export const ArrayRender = <T>({
   });
 
   return () =>
-    rh(
-      Fragment,
-      {},
-      ...itemNodesRef.value.filter((x) => !x.del).map((x) => x.node)
+    rh(Fragment, {}, () =>
+      itemNodesRef.value.filter((x) => !x.del).map((x) => x.node)
     );
 };

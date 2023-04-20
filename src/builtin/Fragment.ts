@@ -1,29 +1,75 @@
-import { onUnmount, source_stack, useCS } from '../ComponentSource';
-import { createAnchor } from '../misc';
+import { hookEffect, source_stack, useCS } from '../ComponentSource';
+import { onDomInserted } from '../misc';
 import { rh, warpView } from '../rh';
+
+type FragmentChildren = Element | Comment;
 
 /**
  * Fragment Component
  */
 export const Fragment = rh.component({
-  setup(_, ...children: any[]) {
-    const children_views = children
-      .map((child) => warpView(child, source_stack.peek()))
-      .filter(Boolean);
-    const anchor = createAnchor((parentNode) => {
-      children_views.forEach(
-        (view) => view && parentNode.insertBefore(view, anchor)
-      );
+  setup(_, childrenOrChildrenRender: any, ...children: any[]) {
+    const component_context = {
+      anchor: document.createTextNode(''),
+      children: [] as Array<FragmentChildren>,
+      parentNode: null as null | HTMLElement,
+    };
+
+    const cs = source_stack.peek();
+    const childrenRenderFunc = (
+      (childrenFn: () => any[]) => () =>
+        childrenFn()
+          .map((child) => warpView(child, cs))
+          .filter(Boolean)
+    )(
+      typeof childrenOrChildrenRender === 'function'
+        ? childrenOrChildrenRender
+        : () => [childrenOrChildrenRender, ...children]
+    );
+
+    const childrenRender = () => {
+      const oldChildren = component_context.children;
+      const newChildren = childrenRenderFunc();
+      const { parentNode, anchor } = component_context;
+      if (!parentNode) {
+        return;
+      }
+
+      // simple diff based element object
+      const length = Math.max(newChildren.length, oldChildren.length);
+      for (let idx = 0; idx < length; idx++) {
+        const newOne = newChildren[idx];
+        const oldOne = oldChildren[idx];
+
+        if (!newOne && oldOne) {
+          oldOne.remove();
+        } else if (!oldOne && newOne) {
+          parentNode.insertBefore(newOne, anchor);
+        } else if (oldOne && newOne) {
+          if (oldOne === newOne) {
+            continue;
+          }
+          parentNode.replaceChild(newOne, oldOne);
+        }
+      }
+      component_context.children = newChildren as any[];
+    };
+
+    hookEffect(childrenRender);
+    onDomInserted(component_context.anchor, (parent) => {
+      component_context.parentNode = parent;
+      childrenRender();
     });
+
     useCS((cs) => {
       cs.__parent_source?.once('update_before', () => {
-        children_views.forEach((view) => view?.remove());
+        component_context.children.forEach((view) => view?.remove());
         cs.__parent_source?.once('update_after', () => {
-          anchor.remove();
+          component_context.anchor.remove();
         });
       });
     });
-    return { anchor };
+    return component_context;
   },
   render(ctx) {
     return ctx.anchor;

@@ -41,7 +41,7 @@
     rh,
     tools,
     utils,
-  } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
+  } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.module.js';
   const { ref } = utils.reactivity;
 
   const timeStr = ref(new Date().toLocaleString());
@@ -59,7 +59,7 @@
 <div id="app"></div>
 
 <script type="module">
-  import { rh, utils } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
+  import { rh, utils } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.module.js';
   const { ref } = utils.reactivity;
   const counter = {
     setup({ defValue = 0 }) {
@@ -93,7 +93,7 @@ FC
 <div id="app"></div>
 
 <script type="module">
-  import { rh, utils } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.modern.module.js';
+  import { rh, utils } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.module.js';
   const { ref } = utils.reactivity;
   const counter = ({ defValue = 0 }) => {
     const count = ref(defValue);

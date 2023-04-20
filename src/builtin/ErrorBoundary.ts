@@ -1,5 +1,6 @@
 import { ref } from '@vue/reactivity';
 import { source_stack } from '../ComponentSource';
+import { unskip } from '../reactivity';
 import { rh, rhElem } from '../rh';
 
 /**
@@ -37,9 +38,9 @@ export const ErrorBoundary = rh.component({
       rerenderRef.value = Date.now();
       catchError.value = null;
     };
-    const children = childrenRender();
-    return catchError.value
-      ? fallbackRender(catchError.value, rerender)
-      : children;
+    if (catchError.value) {
+      return unskip(() => fallbackRender(catchError.value!, rerender));
+    }
+    return childrenRender();
   },
 });

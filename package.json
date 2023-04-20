@@ -4,7 +4,7 @@
   "version": "0.0.20",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
-  "module": "dist/main.modern.mjs",
+  "module": "dist/main.module.mjs",
   "unpkg": "dist/main.umd.js",
   "types": "./dist/main.d.ts",
   "exports": {
