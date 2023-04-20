@@ -4,6 +4,8 @@ import {
   pauseTracking,
   resetTracking,
   ref,
+  Ref,
+  unref,
 } from '@vue/reactivity';
 import { hookEffect } from './ComponentSource';
 
@@ -24,13 +26,13 @@ export const unskip = <RET = unknown>(fn: () => RET) => {
 };
 
 export const watch = <Value>(
-  valueFn: () => Value,
+  valueFn: (() => Value) | Ref<Value>,
   effectFn: (arg1: Value, prev_value: undefined | Value) => any,
   options?: ReactiveEffectOptions | undefined
 ) => {
   let prev_value = undefined as undefined | Value;
   return hookEffect(() => {
-    const val = valueFn();
+    const val = typeof valueFn === 'function' ? valueFn() : unref(valueFn);
     skip(() => effectFn(val, prev_value));
     prev_value = val;
   }, options);

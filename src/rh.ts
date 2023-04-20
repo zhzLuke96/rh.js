@@ -230,12 +230,15 @@ function createElement(
   return elem;
 }
 const mount = (
-  selector: string,
+  selectorOrDom: string | HTMLElement,
   funcOrComp: FunctionComponent | SetupComponent | Node,
   props?: AnyRecord,
   ...children: any[]
 ) => {
-  const container = document.querySelector(selector);
+  const container =
+    selectorOrDom instanceof Node
+      ? selectorOrDom
+      : document.querySelector(selectorOrDom);
   if (typeof funcOrComp === 'function') {
     const view = buildFunctionComponent(funcOrComp, props, ...children);
     view && container?.appendChild(view);

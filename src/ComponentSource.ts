@@ -10,8 +10,8 @@ export type ComponentSource = EventEmitter<{
 
   update_before: () => any; // many
   update_after: (error?: Error) => any; // many
-  setup_before: () => any; // many
-  setup_after: () => any; // many
+  setup_before: () => any; // once (zero)
+  setup_after: () => any; // once
 }> & { __parent_source?: ComponentSource; __context: Record<keyof any, any> };
 
 export let global_source: ComponentSource;

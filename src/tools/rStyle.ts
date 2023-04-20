@@ -1,4 +1,3 @@
-import { isRef } from '@vue/reactivity';
 import { hookEffect } from '../ComponentSource';
 
 type CSSProperties = Partial<CSSStyleDeclaration>;

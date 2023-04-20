@@ -26,6 +26,7 @@ export function provide<T = unknown>(
   }
   return default_value;
 }
+
 export function inject(key: string, value: any) {
   const ctx_arr = ctx_stack.toArray();
   if (ctx_arr.length === 0) {
