@@ -1453,7 +1453,11 @@ declare namespace JSX {
   export interface HTMLAttributes<RefType extends EventTarget = EventTarget>
     extends DOMAttributes<RefType>,
       AriaAttributes {
+    // JSX attributes
     children?: any;
+    // RhJS attributes
+    ref?: any;
+    effect?: any;
 
     // Standard HTML Attributes
     accept?: string | undefined | RefLike<string | undefined>;

@@ -26,25 +26,36 @@ export const unskip = <RET = unknown>(fn: () => RET) => {
 };
 
 export const watch = <Value>(
-  valueFn: (() => Value) | Ref<Value>,
+  valueFn: ((prev_value?: Value) => Value) | Ref<Value>,
   effectFn: (arg1: Value, prev_value: undefined | Value) => any,
   options?: ReactiveEffectOptions | undefined
 ) => {
   let prev_value = undefined as undefined | Value;
   return hookEffect(() => {
-    const val = typeof valueFn === 'function' ? valueFn() : unref(valueFn);
+    const val =
+      typeof valueFn === 'function' ? valueFn(prev_value) : unref(valueFn);
     skip(() => effectFn(val, prev_value));
     prev_value = val;
   }, options);
 };
 
-export const computed = <Value = unknown, Ret = Value>(
-  valueFn: () => Value,
-  pipeFn?: (val: Value) => Ret
+export const untrack = <Value = unknown>(refObj: Ref<Value>) =>
+  skip(() => unref(refObj));
+
+export const computed = <Value = unknown>(
+  valueFn: (prev_value?: Value) => Value,
+  options?: ReactiveEffectOptions | undefined
 ) => {
-  const computedValue = ref<Ret>();
-  watch(valueFn, (val) => {
-    computedValue.value = (pipeFn ? pipeFn(val) : val) as any;
-  });
+  const computedValue = ref<Value>();
+  watch(
+    valueFn,
+    (val) => {
+      computedValue.value = val;
+    },
+    options
+  );
   return computedValue;
 };
+
+export const useRef = <Value = unknown>(refObj: Ref<Value>) =>
+  [unref(refObj), (next_value: Value) => (refObj.value = next_value)] as const;

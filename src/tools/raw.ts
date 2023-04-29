@@ -1,6 +1,6 @@
-import { unref } from '@vue/reactivity';
+import { computed, unref } from '@vue/reactivity';
 
-const unrefFn = (val: any) => (typeof val === 'function' ? val() : unref(val));
+const unrefFn = (val: any) => unref(typeof val === 'function' ? val() : val);
 /**
  * reactivity raw template literals
  *
@@ -14,3 +14,6 @@ export const raw = (strings: string[], ...values: any[]) =>
     }
     return output;
   }, '');
+
+export const rawRef = (strings: string[], ...values: any[]) =>
+  computed(() => raw(strings, ...values));

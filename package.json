@@ -13,8 +13,11 @@
     "default": "./dist/main.modern.mjs"
   },
   "keywords": [
-    "microbundle",
-    "typescript"
+    "typescript",
+    "framework",
+    "reactivity",
+    "web",
+    "lightweight"
   ],
   "files": [
     "dist/**.js*",

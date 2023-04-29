@@ -47,8 +47,24 @@ export const useComponentSource = <RET = ComponentSource>(
 };
 export const useCS = useComponentSource;
 
+type DisposeFn = () => any;
 export const onMount = (fn: (cs: ComponentSource) => any) =>
-  useComponentSource((cs) => cs.once('mount', () => fn(cs)));
+  useComponentSource<DisposeFn>((cs) => {
+    const handler = () => fn(cs);
+    cs.once('mount', handler);
+    return () => cs.off('mount', handler);
+  });
 
 export const onUnmount = (fn: (cs: ComponentSource) => any) =>
-  useComponentSource((cs) => cs.once('unmount', () => fn(cs)));
+  useComponentSource<DisposeFn>((cs) => {
+    const handler = () => fn(cs);
+    cs.once('unmount', handler);
+    return () => cs.off('unmount', handler);
+  });
+
+export const onCatch = (fn: (value: any, cs: ComponentSource) => any) =>
+  useComponentSource<DisposeFn>((cs) => {
+    const handler = (value: any) => fn(value, cs);
+    cs.once('throw', handler);
+    return () => cs.off('throw', handler);
+  });
