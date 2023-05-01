@@ -6,10 +6,13 @@ import {
   ref,
   Ref,
   unref,
+  UnwrapRef,
 } from '@vue/reactivity';
 import { hookEffect } from './ComponentSource';
 
 export * as reactivity from '@vue/reactivity';
+
+export type WeakRef<T> = T | Ref<T>;
 
 export const skip = <RET = unknown>(fn: () => RET) => {
   pauseTracking();
@@ -39,7 +42,7 @@ export const watch = <Value>(
   }, options);
 };
 
-export const untrack = <Value = unknown>(refObj: Ref<Value>) =>
+export const untrack = <Value = unknown>(refObj: Ref<Value> | Value) =>
   skip(() => unref(refObj));
 
 export const computed = <Value = unknown>(
@@ -59,3 +62,10 @@ export const computed = <Value = unknown>(
 
 export const useRef = <Value = unknown>(refObj: Ref<Value>) =>
   [unref(refObj), (next_value: Value) => (refObj.value = next_value)] as const;
+
+type UnRefArray<T extends any[]> = {
+  [K in keyof T]: UnwrapRef<T[K]>;
+};
+
+export const depend = <Args extends any[]>(...args: Args) =>
+  args.map((x) => unref(x)) as UnRefArray<Args>;

@@ -51,6 +51,7 @@ export const onDomInserted = (dom: Node, fn: (parent: HTMLElement) => any) => {
 
 export const createAnchor = (fn?: (parent: HTMLElement) => any, text = '') => {
   const dom = document.createTextNode(text);
+  // FIXME: with dispose function bind
   fn && onDomInserted(dom, fn);
   return dom;
 };

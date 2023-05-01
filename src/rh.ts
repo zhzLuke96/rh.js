@@ -17,7 +17,8 @@ const symbols = {
 
 type AnyRecord = Record<string, any>;
 type rhElemRaw = Element | Comment | number | string | boolean | null;
-export type rhElem = rhElemRaw | vR.Ref<rhElemRaw>;
+type effectElement = () => rhElemRaw;
+export type rhElem = rhElemRaw | vR.Ref<rhElemRaw> | effectElement;
 export type rhView = Element | Comment | null;
 export type RenderFunc<ChildrenList extends any[] = any[]> = (
   props: AnyRecord,
@@ -49,11 +50,13 @@ export type FunctionComponent<
   Props extends AnyRecord = AnyRecord,
   Children extends any[] = any[]
 > = (props: Props, ...children: Children) => () => rhElem;
-// TIPS 可以用，但是...setup和render非常有必要分割开
+
+// WARN 这个类型是可以用，但是...setup和render非常有必要分割开，所以不要在core里实现这个类型
 // export type ShortFunctionComponent<Props extends AnyRecord = AnyRecord> = (
 //   props?: Props,
 //   ...children: any[]
 // ) => rhElem;
+
 export type FC<
   Props extends AnyRecord = AnyRecord,
   ChildrenList extends any[] = any[]
@@ -66,15 +69,16 @@ export const warpView = (
   if (!view && view !== false && view !== 0) {
     return null;
   }
-  if (vR.isRef(view)) {
+  if (vR.isRef(view) || typeof view === 'function') {
     let parentElement = null as null | HTMLElement;
-    const marker = document.createTextNode('1');
+    const marker = document.createTextNode('');
     let viewValue = marker as ReturnType<typeof warpView>;
     const runner = effect(
       () => {
         parentElement = parentElement || viewValue?.parentElement || null;
         const before = viewValue;
-        viewValue = warpView(view.value, cs) || marker;
+        const effectView = typeof view === 'function' ? view() : view.value;
+        viewValue = warpView(effectView, cs) || marker;
         if (viewValue !== before && parentElement) {
           parentElement.insertBefore(viewValue, before);
           rmElem(before);
@@ -82,7 +86,15 @@ export const warpView = (
       },
       { lazy: false }
     );
-    cs?.once('unmount', () => runner.effect.stop());
+    const disposeEvent = onDomInserted(marker, (parent) => {
+      parentElement = parent;
+      runner.effect.run();
+      disposeEvent();
+    });
+    cs?.once('unmount', () => {
+      runner.effect.stop();
+      disposeEvent();
+    });
     return viewValue;
   }
   if (view instanceof Node) {
@@ -129,6 +141,7 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
   const disposeEvent = onDomInserted(maker, (parent) => {
     container = parent;
     runner.effect.run();
+    disposeEvent();
   });
   cs.__parent_source?.once('update_before', () => {
     cs.emit('unmount');
@@ -188,13 +201,24 @@ function hydrateElement(
       return;
     }
     const value = props[k];
-    if (k === 'ref' || k === 'effect') {
-      if (typeof value === 'function') {
-        hookEffect(() => value(elem), { lazy: false });
-      } else if (vR.isRef(value)) {
-        value.value = elem;
+    switch (k) {
+      case 'ref': {
+        if (typeof value === 'function') {
+          value(elem);
+        } else if (vR.isRef(value)) {
+          value.value = elem;
+        }
+        return;
       }
-      return;
+      case 'effect': {
+        if (typeof value === 'function') {
+          hookEffect(() => value(elem), { lazy: false });
+        }
+        return;
+      }
+      default: {
+        break;
+      }
     }
     if (!k.startsWith('on') && typeof value === 'function') {
       hookEffect(() => elem.setAttribute(k, value()), { lazy: false });

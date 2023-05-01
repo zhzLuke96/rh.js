@@ -39,6 +39,7 @@ export const Style: StyleComponent = (
     parent.classList.add(className);
     parentNode?.classList.remove(className);
     parentNode = parent;
+    disposeEvent();
   });
   onUnmount(() => {
     disposeEvent();

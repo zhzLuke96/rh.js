@@ -59,6 +59,7 @@ export const Fragment = rh.component({
     const disposeEvent = onDomInserted(component_context.anchor, (parent) => {
       component_context.parentNode = parent;
       childrenRender();
+      disposeEvent();
     });
     onUnmount(disposeEvent);
 
