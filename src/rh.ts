@@ -129,10 +129,11 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
       if (currentView.parentElement === container) {
         container.replaceChild(nextView, currentView);
       } else {
-        container.appendChild(nextView);
+        container.insertBefore(nextView, maker);
       }
-      rmElem(currentView);
-      rmElem(maker);
+      if (currentView !== maker) {
+        rmElem(currentView);
+      }
       currentView = nextView;
     }
     cs.emit('update_after');
@@ -151,6 +152,7 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
     disposeEvent();
     runner.effect.stop();
     cs.removeAllListeners();
+    rmElem(maker);
   });
   return currentView;
 }
