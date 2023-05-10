@@ -55,11 +55,11 @@ export const Fragment = rh.component({
       component_context.children = newChildren as any[];
     };
 
-    hookEffect(childrenRender);
+    const effectRunner = hookEffect(childrenRender);
     const disposeEvent = onDomInserted(component_context.anchor, (parent) => {
-      component_context.parentNode = parent;
-      childrenRender();
       disposeEvent();
+      component_context.parentNode = parent;
+      effectRunner();
     });
     onUnmount(disposeEvent);
 

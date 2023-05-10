@@ -1,7 +1,7 @@
 import { shallowRef } from '@vue/reactivity';
 import { Fragment } from './Fragment';
 import { rh } from '../rh';
-import { watch } from '../reactivity';
+import { untrack, watch } from '../reactivity';
 import * as equal from 'fast-deep-equal';
 
 interface MapProps<T> {
@@ -29,27 +29,31 @@ export const ArrayRender = <T>({
     { data: T; node: HTMLElement; del?: boolean }[]
   >([]);
 
-  watch(getItems, (items) => {
-    const itemNodes = itemNodesRef.value;
-    for (let idx = 0; idx < Math.max(itemNodes.length, items.length); idx++) {
-      const itemNode = itemNodes[idx];
-      const item = items[idx];
-      if (itemNode !== undefined && item !== undefined) {
-        if (!itemNode.node || needUpdate(item, itemNode.data)) {
-          const next = render(item, idx, items, itemNode.node);
-          itemNode.node = next;
-          itemNode.data = item;
+  watch(
+    getItems,
+    (items) => {
+      const itemNodes = untrack(itemNodesRef);
+      for (let idx = 0; idx < Math.max(itemNodes.length, items.length); idx++) {
+        const itemNode = itemNodes[idx];
+        const item = items[idx];
+        if (itemNode !== undefined && item !== undefined) {
+          if (!itemNode.node || needUpdate(item, itemNode.data)) {
+            const next = render(item, idx, items, itemNode.node);
+            itemNode.node = next;
+            itemNode.data = item;
+          }
+        } else if (itemNode === undefined) {
+          const node = render(item, idx, items);
+          itemNodes.push({ data: item, node });
+        } else if (item === undefined) {
+          itemNode.del = true;
         }
-      } else if (itemNode === undefined) {
-        const node = render(item, idx, items);
-        itemNodes.push({ data: item, node });
-      } else if (item === undefined) {
-        itemNode.del = true;
       }
-    }
-    const nextItemNodes = itemNodes.filter((x) => x.del !== true);
-    itemNodesRef.value = nextItemNodes;
-  });
+      const nextItemNodes = itemNodes.filter((x) => x.del !== true);
+      itemNodesRef.value = nextItemNodes;
+    },
+    { lazy: false }
+  );
 
   return () =>
     rh(Fragment, {}, () =>

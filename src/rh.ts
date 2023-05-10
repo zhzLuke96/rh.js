@@ -16,6 +16,11 @@ const symbols = {
   HOOK_CB: Symbol('HOOK_CB'),
   IS_ANCHOR: Symbol('IS_ANCHOR'),
 };
+const createViewAnchor = () => {
+  const viewAnchor = document.createTextNode('');
+  (<any>viewAnchor)[symbols.IS_ANCHOR] = true;
+  return viewAnchor;
+};
 
 type AnyRecord = Record<string, any>;
 type rhElemRaw = Element | Comment | number | string | boolean | null;
@@ -73,31 +78,37 @@ export const warpView = (
   }
   if (vR.isRef(view) || typeof view === 'function') {
     let parentElement = null as null | HTMLElement;
-    const marker = document.createTextNode('');
-    let viewValue = marker as ReturnType<typeof warpView>;
+    const viewAnchor = createViewAnchor();
+    let currentView = viewAnchor as ReturnType<typeof warpView>;
     const runner = effect(
       () => {
-        parentElement = parentElement || viewValue?.parentElement || null;
-        const before = viewValue;
+        parentElement = parentElement || currentView?.parentElement || null;
+        const before = currentView;
         const effectView = typeof view === 'function' ? view() : view.value;
-        viewValue = warpView(effectView, cs) || marker;
-        if (viewValue !== before && parentElement) {
-          parentElement.insertBefore(viewValue, before);
+        currentView = warpView(effectView, cs) || viewAnchor;
+        if (currentView !== before && parentElement) {
+          parentElement.insertBefore(currentView, before);
           removeElem(before);
         }
       },
       { lazy: false }
     );
-    const disposeEvent = onDomInserted(marker, (parent) => {
-      parentElement = parent;
-      runner.effect.run();
-      disposeEvent();
-    });
+    const disposeEvent = onDomInserted(
+      currentView || viewAnchor,
+      (parent, source) => {
+        disposeEvent();
+        parentElement = parent;
+        if (currentView && source !== currentView) {
+          parentElement.insertBefore(currentView, source);
+          removeElem(source);
+        }
+      }
+    );
     cs?.once('unmount', () => {
       runner.effect.stop();
       disposeEvent();
     });
-    return viewValue;
+    return currentView;
   }
   if (view instanceof Node) {
     return view;
@@ -106,8 +117,7 @@ export const warpView = (
 };
 
 function hydrateRender(render: () => rhElem, cs: ComponentSource) {
-  const viewAnchor = document.createTextNode('');
-  (<any>viewAnchor)[symbols.IS_ANCHOR] = true;
+  const viewAnchor = createViewAnchor();
   let viewParentElement = null as HTMLElement | null;
   let currentView = viewAnchor as NonNullable<rhView>;
   // The first update_after is mount
@@ -152,7 +162,6 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
     // inject anchor
     if (viewAnchor !== source) {
       parent.insertBefore(viewAnchor, source);
-      console.log('inject', source === currentView);
     }
     if (source !== currentView) {
       parent.insertBefore(currentView, source);
@@ -264,10 +273,13 @@ function hydrateElement(
       { lazy: false }
     );
   });
-  const parent_source = source_stack.peek();
-  children
-    .map((child) => warpView(child, parent_source))
-    .forEach((child) => child && elem.appendChild(child));
+  // *To prevent unnecessary rendering and performance overhead, we use `skip` to avoid the effect-binding triggered by `DOM insertion event` causing parent-effect to depend on dependencies of its grandchildren components.
+  skip(() => {
+    const parent_source = source_stack.peek();
+    children
+      .map((child) => warpView(child, parent_source))
+      .forEach((child) => child && elem.appendChild(child));
+  });
 }
 function createElement(
   tagName: string,

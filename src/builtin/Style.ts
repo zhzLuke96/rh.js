@@ -27,6 +27,8 @@ const zipStyleFn = (
 
 /**
  * Adaptive nested css style definition components
+ *
+ * TODO: Plan to refactor the specific implementation below to utilize constructed stylesheets and inject them into document.adoptedStyleSheets, rather than creating DOM elements directly.
  */
 export const Style: StyleComponent = (
   { styleFn, style, ...props },
@@ -36,10 +38,10 @@ export const Style: StyleComponent = (
   const { className, dom } = rStyle(_styleFn);
   let parentNode: any;
   const disposeEvent = onDomInserted(dom, (parent) => {
+    disposeEvent();
     parent.classList.add(className);
     parentNode?.classList.remove(className);
     parentNode = parent;
-    disposeEvent();
   });
   onUnmount(() => {
     disposeEvent();
