@@ -10,9 +10,11 @@ import { onDomInserted } from './misc';
 
 const { effect } = vR;
 
-const rmElem = (elem?: Node | null) => elem?.parentElement?.removeChild(elem);
+const removeElem = (elem?: Node | null) =>
+  elem?.parentElement?.removeChild(elem);
 const symbols = {
   HOOK_CB: Symbol('HOOK_CB'),
+  IS_ANCHOR: Symbol('IS_ANCHOR'),
 };
 
 type AnyRecord = Record<string, any>;
@@ -81,7 +83,7 @@ export const warpView = (
         viewValue = warpView(effectView, cs) || marker;
         if (viewValue !== before && parentElement) {
           parentElement.insertBefore(viewValue, before);
-          rmElem(before);
+          removeElem(before);
         }
       },
       { lazy: false }
@@ -103,10 +105,16 @@ export const warpView = (
   return document.createTextNode(`${view}`);
 };
 
+/**
+ * TODO: error boundary 会有异常
+ *
+ * TODO: 最好还是保证第一次渲染只调用一次render
+ */
 function hydrateRender(render: () => rhElem, cs: ComponentSource) {
-  let container = null as HTMLElement | null;
-  let maker = document.createTextNode('');
-  let currentView = maker as NonNullable<rhView>;
+  const viewAnchor = document.createTextNode('');
+  (<any>viewAnchor)[symbols.IS_ANCHOR] = true;
+  let viewParentElement = null as HTMLElement | null;
+  let currentView = viewAnchor as NonNullable<rhView>;
   // The first update_after is mount
   cs.once('update_after', (error) => cs.emit('mount', error));
 
@@ -116,33 +124,40 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
     try {
       source_stack.push(cs);
       cs.emit('update');
-      nextView = warpView(render(), cs) || maker;
+      nextView = warpView(render(), cs) || viewAnchor;
       source_stack.pop();
     } catch (error) {
-      // *Because the marker is rendered without a parent the first time, it sends an error to the body by default
-      cs.emit('throw', error);
-      console.error(error);
+      requestAnimationFrame(() => {
+        // *If the component receiving throw is the component itself, it may cause the effect to be merged, so you need to throw at next-tick
+        cs.emit('throw', error);
+        console.error(error);
+      });
       cs.emit('update_after', <any>error);
       return;
     }
-    if (container) {
-      if (currentView.parentElement === container) {
-        container.replaceChild(nextView, currentView);
-      } else {
-        container.insertBefore(nextView, maker);
+    if (viewParentElement) {
+      viewParentElement.insertBefore(
+        nextView,
+        currentView.parentElement === viewParentElement
+          ? currentView
+          : viewAnchor
+      );
+      if (!(<any>currentView)[symbols.IS_ANCHOR]) {
+        removeElem(currentView);
       }
-      if (currentView !== maker) {
-        rmElem(currentView);
-      }
-      currentView = nextView;
     }
+    currentView = nextView;
     cs.emit('update_after');
   };
-  const runner = effect(renderEffectFn, { lazy: true });
-  const disposeEvent = onDomInserted(maker, (parent) => {
-    container = parent;
-    runner.effect.run();
+  // TIPS: don't replace effect to hookEffect
+  const runner = effect(renderEffectFn, { lazy: false });
+  const disposeEvent = onDomInserted(currentView, (parent) => {
     disposeEvent();
+    viewParentElement = parent;
+    // inject anchor
+    if (viewAnchor !== currentView) {
+      parent.insertBefore(viewAnchor, currentView);
+    }
   });
   cs.__parent_source?.once('update_before', () => {
     cs.emit('unmount');
@@ -152,7 +167,8 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
     disposeEvent();
     runner.effect.stop();
     cs.removeAllListeners();
-    rmElem(maker);
+    // Remove Anchor only when unmount
+    removeElem(viewAnchor);
   });
   return currentView;
 }
