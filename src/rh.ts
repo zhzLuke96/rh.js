@@ -105,11 +105,6 @@ export const warpView = (
   return document.createTextNode(`${view}`);
 };
 
-/**
- * TODO: error boundary 会有异常
- *
- * TODO: 最好还是保证第一次渲染只调用一次render
- */
 function hydrateRender(render: () => rhElem, cs: ComponentSource) {
   const viewAnchor = document.createTextNode('');
   (<any>viewAnchor)[symbols.IS_ANCHOR] = true;
@@ -151,12 +146,19 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
   };
   // TIPS: don't replace effect to hookEffect
   const runner = effect(renderEffectFn, { lazy: false });
-  const disposeEvent = onDomInserted(currentView, (parent) => {
+  const disposeEvent = onDomInserted(currentView, (parent, source) => {
     disposeEvent();
     viewParentElement = parent;
     // inject anchor
-    if (viewAnchor !== currentView) {
-      parent.insertBefore(viewAnchor, currentView);
+    if (viewAnchor !== source) {
+      parent.insertBefore(viewAnchor, source);
+      console.log('inject', source === currentView);
+    }
+    if (source !== currentView) {
+      parent.insertBefore(currentView, source);
+      if (!(<any>source)[symbols.IS_ANCHOR]) {
+        removeElem(source);
+      }
     }
   });
   cs.__parent_source?.once('update_before', () => {
