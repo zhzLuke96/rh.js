@@ -5,6 +5,11 @@ module.exports = [
   {
     input: './src/main.ts',
     output: [{ file: './dist/main.d.ts', format: 'es' }],
-    plugins: [dts()],
+    plugins: [
+      dts({
+        respectExternal: true,
+      }),
+    ],
+    external: [],
   },
 ];
