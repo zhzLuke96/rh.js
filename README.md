@@ -9,7 +9,7 @@
 **FEATURES:**
 
 - Packed only `< 9kb`
-- Source core code within `300` lines (including type annotations)
+- Source core code within `~300` lines (including type annotations)
 - Based on `@vue/reactivity`
 - Easy to use function component patterns
 - Not extras syntax, all in js. 
@@ -21,8 +21,9 @@
 - [rh.js](#rhjs)
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
-  - [Component](#component)
-- [Demos](#demos)
+  - [Component (with JSX)](#component-with-jsx)
+  - [Function Component](#function-component)
+- [More @Rhjs Details](#more-rhjs-details)
 - [Related Efforts](#related-efforts)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -52,78 +53,71 @@
 </script>
 ```
 
-## Component
+## Component (with JSX)
+> jsx+vite+rhjs project template: https://github.com/zhzLuke96/rhjs-vite-tsx-starter
 
-```html
-<div id="app"></div>
+```jsx
+import { rh, reactivity } from '@rhjs/rh';
 
-<script type="module">
-  import { rh, utils } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.module.js';
-  const { ref } = utils.reactivity;
-  const counter = {
-    setup({ defValue = 0 }) {
-      const count = ref(defValue);
+const Counter = rh.component({
+  setup({ defValue = 0 }) {
+      const count = reactivity.ref(defValue);
       return {
         count,
         inc: () => count.value++,
         dec: () => count.value--,
       };
-    },
-    render({ count, inc, dec }) {
-      return rh(
-        'div',
-        {},
-        rh('h1', {}, 'count: ', count),
-        rh('button', { onclick: inc }, '+'),
-        rh('button', { onclick: dec }, '-')
-      );
-    },
-  };
+  },
+  render({ count, inc, dec }) {
+    return (
+      <div>
+        <h1>count: {count}</h1>
+        <br/>
+        <button onClick={inc}>+</button>
+        <button onClick={dec}>-</button>
+      </div>
+    )
+  }
+});
 
-  rh.mount('#app', counter);
-  rh.mount('#app', counter);
-  rh.mount('#app', counter);
-</script>
+rh.mount('#app', Counter);
 ```
 
-FC
+> rh.component returns the original value, similar to an `identity` function, but with added TypeScript type checking.
 
-```html
-<div id="app"></div>
+## Function Component
+```jsx
+import { rh, reactivity } from '@rhjs/rh';
 
-<script type="module">
-  import { rh, utils } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.module.js';
-  const { ref } = utils.reactivity;
-  const counter = ({ defValue = 0 }) => {
+const Counter = ({ defValue = 0 }) => {
     const count = ref(defValue);
 
     const inc = () => count.value++;
     const dec = () => count.value--;
 
-    return () =>
-      rh(
-        'div',
-        {},
-        rh('h1', {}, 'count: ', count),
-        rh('button', { onclick: inc }, '+'),
-        rh('button', { onclick: dec }, '-')
-      );
-  };
+    return () => (
+      <div>
+        <h1>count: {count}</h1>
+        <br/>
+        <button onClick={inc}>+</button>
+        <button onClick={dec}>-</button>
+      </div>
+    )
+};
 
-  rh.mount('#app', counter);
-  rh.mount('#app', counter);
-  rh.mount('#app', counter);
-</script>
+rh.mount('#app', Counter);
 ```
 
-# Demos
-https://zhzluke96.github.io/rhjs-demos/#demo
+# More @Rhjs Details
+- demos page: https://zhzluke96.github.io/rhjs-demos/#demo
+- playground: https://zhzluke96.github.io/rhjs-playground/
 
 # Related Efforts
 
 - [lit-element](https://github.com/Polymer/lit-element) A simple base class for creating fast, lightweight web components
 - [alpine](https://github.com/alpinejs/alpine) A rugged, minimal framework for composing JavaScript behavior in your markup.
 - [petite-vue](https://github.com/vuejs/petite-vue) 6kb subset of Vue optimized for progressive enhancement
+- [solid](https://github.com/solidjs/solid) A declarative, efficient, and flexible JavaScript library for building user interfaces.
 
 # Maintainers
 

@@ -63,5 +63,10 @@
     "@vue/reactivity": "^3.2.37",
     "eventemitter3": "^5.0.0",
     "fast-deep-equal": "^3.1.3"
-  }
+  },
+  "bundledDependencies": [
+    "@vue/reactivity",
+    "eventemitter3",
+    "fast-deep-equal"
+  ]
 }
