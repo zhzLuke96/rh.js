@@ -1,6 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { effect, ReactiveEffectOptions } from '@vue/reactivity';
 import { Stack } from './misc';
+import { symbols } from './constants';
 
 export type ComponentSource = EventEmitter<{
   mount: (error?: Error) => any; // once
@@ -16,13 +17,17 @@ export type ComponentSource = EventEmitter<{
 
 export let global_source: ComponentSource;
 export const newComponentSource = (
-  parent_source = global_source
+  parent_source = global_source,
+  target?: any
 ): ComponentSource => {
-  const ret = new EventEmitter() as ComponentSource;
-  ret.__parent_source = parent_source;
-  ret.__context = {};
-  ret.on('throw', (x) => parent_source?.emit('throw', x));
-  return ret;
+  const cs = new EventEmitter() as ComponentSource;
+  cs.__parent_source = parent_source;
+  cs.__context = {};
+  cs.on('throw', (x) => parent_source?.emit('throw', x));
+  if (typeof target?.[symbols.CS_HOOK_CB] === 'function') {
+    target?.[symbols.CS_HOOK_CB](cs);
+  }
+  return cs;
 };
 global_source = newComponentSource();
 export const hookEffect = (

@@ -7,15 +7,12 @@ import {
   newComponentSource,
 } from './ComponentSource';
 import { onDomInserted } from './misc';
+import { symbols } from './constants';
 
 const { effect } = vR;
 
 const removeElem = (elem?: Node | null) =>
   elem?.parentElement?.removeChild(elem);
-const symbols = {
-  HOOK_CB: Symbol('HOOK_CB'),
-  IS_ANCHOR: Symbol('IS_ANCHOR'),
-};
 const createViewAnchor = () => {
   const viewAnchor = document.createTextNode('');
   (<any>viewAnchor)[symbols.IS_ANCHOR] = true;
@@ -24,8 +21,16 @@ const createViewAnchor = () => {
 
 type AnyRecord = Record<string, any>;
 type rhElemRaw = Element | Comment | number | string | boolean | null;
-type effectElement = () => rhElemRaw;
-export type rhElem = rhElemRaw | vR.Ref<rhElemRaw> | effectElement;
+/**
+ * Element-Render within a special effect
+ *
+ * This type is a local rendering function that limits rendering to a specific side effect,
+ * reducing its overall (parent element) impact.
+ *
+ * NOTE: This function will finally be called in the warpView function to render
+ */
+type effectElementRender = () => rhElemRaw;
+export type rhElem = rhElemRaw | vR.Ref<rhElemRaw> | effectElementRender;
 export type rhView = Element | Comment | null;
 export type RenderFunc<ChildrenList extends any[] = any[]> = (
   props: AnyRecord,
@@ -48,7 +53,11 @@ export type SetupComponent<
   setup: ComponentSetup<Props, Ctx, ChildrenList>;
   render: ComponentRender<Ctx, ChildrenList>;
 };
-// *JUST TS Syntactic sugar
+
+/**
+ * This function returns the original value, similar to an `identity` function, but with added TypeScript type checking.
+ * It can be used to link the `setup` and `render` functions together, making it a syntactic sugar of sorts.
+ */
 const component = <Props extends AnyRecord = AnyRecord, Ctx = any>(
   comp: SetupComponent<Props, Ctx>
 ) => comp;
@@ -188,11 +197,7 @@ function buildFunctionComponent(
   props = {} as AnyRecord,
   ...children: any[]
 ) {
-  const hookCallback = (<any>fn)[symbols.HOOK_CB];
-  const cs = newComponentSource(source_stack.peek());
-  if (typeof hookCallback === 'function') {
-    hookCallback(cs);
-  }
+  const cs = newComponentSource(source_stack.peek(), fn);
   cs.emit('setup_before');
   const render = skip(() => {
     source_stack.push(cs);
@@ -209,11 +214,7 @@ function buildComponent(
   ...children: any[]
 ) {
   const { setup, render } = component;
-  const hookCallback = (<any>component)[symbols.HOOK_CB];
-  const cs = newComponentSource(source_stack.peek());
-  if (typeof hookCallback === 'function') {
-    hookCallback(cs);
-  }
+  const cs = newComponentSource(source_stack.peek(), component);
   cs.emit('setup_before');
   const ctx = setup({ ...props, __component_source: cs }, ...children) || {};
   ctx.__component_source = cs;
@@ -323,7 +324,7 @@ const hookComponent = <T extends FunctionComponent | SetupComponent>(
   component: T,
   hookCallback: (cs: ComponentSource) => any
 ): T => {
-  (<any>component)[symbols.HOOK_CB] = hookCallback;
+  (<any>component)[symbols.CS_HOOK_CB] = hookCallback;
   return component;
 };
 

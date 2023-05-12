@@ -12,12 +12,17 @@ export const lazy = <Component extends RhComponent>(
   const ensure_module = () =>
     p || (p = module_loader().then((result) => (module = result)));
 
-  return ((props: any, ...children: any[]) => {
+  const fnComponent = ((props: any, ...children: any[]) => {
     const moduleRef = ref(module);
     if (!module) {
-      ensure_module().then((module) => (moduleRef.value = module));
+      ensure_module().then((module) => {
+        moduleRef.value = module;
+        console.log(module);
+      });
     }
     return () =>
       moduleRef.value ? rh(moduleRef.value.default, props, ...children) : null;
   }) as unknown as Component;
+
+  return fnComponent;
 };

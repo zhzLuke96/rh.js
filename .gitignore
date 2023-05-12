@@ -92,3 +92,6 @@ schema.json
 _gen
 *.html
 .vscode/
+
+# local files
+__local_test__

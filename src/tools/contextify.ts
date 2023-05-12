@@ -1,3 +1,4 @@
+import { symbols } from '../constants';
 import { Stack } from '../misc';
 import { SetupComponent, FunctionComponent, rh } from '../rh';
 
@@ -9,24 +10,34 @@ const ctx_stack = new Stack<ContextObject>();
 const global_context = create_ctx();
 ctx_stack.push(global_context);
 
+/**
+ * Provides the value associated with the specified key in the current or parent contexts
+ * @param key - the key to look up
+ * @param default_value - the default value to return if the key is not found
+ * @returns the value associated with the key, or the default value if the key is not found
+ */
 export function provide<T = unknown>(
   key: string,
-  default_value?: T
+  default_value: T = symbols.NONE as any
 ): T | undefined {
-  const current_ctx = ctx_stack.peek()!;
-  if (key in current_ctx) {
-    return current_ctx[key];
-  }
-  const ctx_arr = ctx_stack.toArray();
-  for (let idx = ctx_arr.length - 1; idx > -1; idx--) {
-    const ctx = ctx_arr[idx];
+  const ctx_arr = ctx_stack.toArray().reverse();
+  for (const ctx of ctx_arr) {
     if (key in ctx) {
       return ctx[key];
     }
   }
+  if (default_value === symbols.NONE) {
+    throw new Error(`The key '${key}' is not defined in context`);
+  }
   return default_value;
 }
 
+/**
+ * Injects a key-value pair into the current context.
+ * @param key - the key to inject
+ * @param value - the value to inject
+ * @throws an error if called outside the contextify component
+ */
 export function inject(key: string, value: any) {
   const ctx_arr = ctx_stack.toArray();
   if (ctx_arr.length === 0) {
@@ -36,6 +47,11 @@ export function inject(key: string, value: any) {
   top[key] = value;
 }
 
+/**
+ * Applies context to a RhComponent, allowing it to access values from its parents' contexts.
+ * @param component - the component to contextify
+ * @returns the contextify component
+ */
 export const contextify = <T extends RhComponent>(component: T): T =>
   rh.hookComponent(component, (cs) => {
     let component_context = create_ctx();
@@ -56,5 +72,9 @@ export const contextify = <T extends RhComponent>(component: T): T =>
     });
     cs.on('update_after', () => {
       ctx_stack.pop();
+    });
+    cs.once('unmount', () => {
+      // for gc
+      component_context = null as any;
     });
   });
