@@ -1,4 +1,9 @@
-import { hookEffect, onUnmount, source_stack, useCS } from '../ComponentSource';
+import {
+  hookEffect,
+  onUnmount,
+  ComponentSource,
+  useCS,
+} from '../ComponentSource';
 import { onDomInserted } from '../misc';
 import { rh, warpView } from '../rh';
 
@@ -15,7 +20,7 @@ export const Fragment = rh.component({
       parentNode: null as null | HTMLElement,
     };
 
-    const cs = source_stack.peek();
+    const cs = ComponentSource.peek();
     const childrenRenderFunc = (
       (childrenFn: () => any[]) => () =>
         childrenFn()

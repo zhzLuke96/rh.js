@@ -1,11 +1,6 @@
 import * as vR from '@vue/reactivity';
 import { skip } from './reactivity';
-import {
-  ComponentSource,
-  source_stack,
-  hookEffect,
-  newComponentSource,
-} from './ComponentSource';
+import { ComponentSource, hookEffect } from './ComponentSource';
 import { onDomInserted } from './misc';
 import { symbols } from './constants';
 
@@ -13,14 +8,15 @@ const { effect } = vR;
 
 const removeElem = (elem?: Node | null) =>
   elem?.parentElement?.removeChild(elem);
-const createViewAnchor = () => {
+const createViewAnchor = (cs: ComponentSource) => {
   const viewAnchor = document.createTextNode('');
   (<any>viewAnchor)[symbols.IS_ANCHOR] = true;
+  (<any>viewAnchor)[symbols.SELF_CS] = cs;
   return viewAnchor;
 };
 
 type AnyRecord = Record<string, any>;
-type rhElemRaw = Element | Comment | number | string | boolean | null;
+type ReactiveElementRaw = Element | Comment | number | string | boolean | null;
 /**
  * Element-Render within a special effect
  *
@@ -29,18 +25,21 @@ type rhElemRaw = Element | Comment | number | string | boolean | null;
  *
  * NOTE: This function will finally be called in the warpView function to render
  */
-type effectElementRender = () => rhElemRaw;
-export type rhElem = rhElemRaw | vR.Ref<rhElemRaw> | effectElementRender;
-export type rhView = Element | Comment | null;
+type ReactiveElementRender = () => ReactiveElementRaw;
+export type ReactiveElement =
+  | ReactiveElementRaw
+  | vR.Ref<ReactiveElementRaw>
+  | ReactiveElementRender;
+export type ReactiveView = Element | Comment | null;
 export type RenderFunc<ChildrenList extends any[] = any[]> = (
   props: AnyRecord,
   ...children: ChildrenList
-) => rhElem;
+) => ReactiveElement;
 
 type ComponentRender<Ctx, ChildrenList extends any[]> = (
   ctx: Ctx,
   ...children: ChildrenList
-) => rhElem;
+) => ReactiveElement;
 type ComponentSetup<Props, Ctx, ChildrenList extends any[]> = (
   props: Props,
   ...children: ChildrenList
@@ -53,6 +52,11 @@ export type SetupComponent<
   setup: ComponentSetup<Props, Ctx, ChildrenList>;
   render: ComponentRender<Ctx, ChildrenList>;
 };
+export const isSetupComponent = (obj: any): obj is SetupComponent =>
+  typeof obj === 'object' &&
+  obj !== null &&
+  typeof obj.setup === 'function' &&
+  typeof obj.render === 'function';
 
 /**
  * This function returns the original value, similar to an `identity` function, but with added TypeScript type checking.
@@ -65,7 +69,7 @@ const component = <Props extends AnyRecord = AnyRecord, Ctx = any>(
 export type FunctionComponent<
   Props extends AnyRecord = AnyRecord,
   Children extends any[] = any[]
-> = (props: Props, ...children: Children) => () => rhElem;
+> = (props: Props, ...children: Children) => () => ReactiveElement;
 
 // WARN 这个类型是可以用，但是...setup和render非常有必要分割开，所以不要在core里实现这个类型
 // export type ShortFunctionComponent<Props extends AnyRecord = AnyRecord> = (
@@ -79,15 +83,15 @@ export type FC<
 > = FunctionComponent<Props, ChildrenList>;
 
 export const warpView = (
-  view: rhElem,
-  cs?: ComponentSource
+  view: ReactiveElement,
+  cs: ComponentSource
 ): Element | Comment | null => {
   if (!view && view !== false && view !== 0) {
     return null;
   }
   if (vR.isRef(view) || typeof view === 'function') {
     let parentElement = null as null | HTMLElement;
-    const viewAnchor = createViewAnchor();
+    const viewAnchor = createViewAnchor(cs);
     let currentView = viewAnchor as ReturnType<typeof warpView>;
     const runner = effect(
       () => {
@@ -99,6 +103,7 @@ export const warpView = (
           parentElement.insertBefore(currentView, before);
           removeElem(before);
         }
+        (<any>currentView)[symbols.SELF_CS] = cs;
       },
       { lazy: false }
     );
@@ -113,7 +118,7 @@ export const warpView = (
         }
       }
     );
-    cs?.once('unmount', () => {
+    cs.once('unmount', () => {
       runner.effect.stop();
       disposeEvent();
     });
@@ -125,21 +130,21 @@ export const warpView = (
   return document.createTextNode(`${view}`);
 };
 
-function hydrateRender(render: () => rhElem, cs: ComponentSource) {
-  const viewAnchor = createViewAnchor();
+function hydrateRender(render: () => ReactiveElement, cs: ComponentSource) {
+  const viewAnchor = createViewAnchor(cs);
   let viewParentElement = null as HTMLElement | null;
-  let currentView = viewAnchor as NonNullable<rhView>;
+  let currentView = viewAnchor as NonNullable<ReactiveView>;
   // The first update_after is mount
   cs.once('update_after', (error) => cs.emit('mount', error));
 
   const renderEffectFn = () => {
     cs.emit('update_before');
-    let nextView: NonNullable<rhView>;
+    let nextView: NonNullable<ReactiveView>;
     try {
-      source_stack.push(cs);
+      ComponentSource.source_stack.push(cs);
       cs.emit('update');
       nextView = warpView(render(), cs) || viewAnchor;
-      source_stack.pop();
+      ComponentSource.source_stack.pop();
     } catch (error) {
       requestAnimationFrame(() => {
         // *If the component receiving throw is the component itself, it may cause the effect to be merged, so you need to throw at next-tick
@@ -161,6 +166,7 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
       }
     }
     currentView = nextView;
+    (<any>currentView)[symbols.SELF_CS] = cs;
     cs.emit('update_after');
   };
   // TIPS: don't replace effect to hookEffect
@@ -179,6 +185,7 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
       }
     }
   });
+  cs.__parent_source?.once('unmount', () => cs.emit('unmount'));
   cs.__parent_source?.once('update_before', () => {
     cs.emit('unmount');
     cs.__parent_source?.once('update_after', () => currentView.remove());
@@ -194,15 +201,15 @@ function hydrateRender(render: () => rhElem, cs: ComponentSource) {
 }
 function buildFunctionComponent(
   fn: FunctionComponent,
+  cs = new ComponentSource(ComponentSource.peek(), fn),
   props = {} as AnyRecord,
   ...children: any[]
 ) {
-  const cs = newComponentSource(source_stack.peek(), fn);
   cs.emit('setup_before');
   const render = skip(() => {
-    source_stack.push(cs);
+    ComponentSource.source_stack.push(cs);
     const ret = fn({ ...props, __component_source: cs }, ...children);
-    source_stack.pop();
+    ComponentSource.source_stack.pop();
     return ret;
   });
   cs.emit('setup_after');
@@ -210,11 +217,11 @@ function buildFunctionComponent(
 }
 function buildComponent(
   component: SetupComponent,
+  cs = new ComponentSource(ComponentSource.peek(), component),
   props = {} as AnyRecord,
   ...children: any[]
 ) {
   const { setup, render } = component;
-  const cs = newComponentSource(source_stack.peek(), component);
   cs.emit('setup_before');
   const ctx = setup({ ...props, __component_source: cs }, ...children) || {};
   ctx.__component_source = cs;
@@ -276,7 +283,7 @@ function hydrateElement(
   });
   // *To prevent unnecessary rendering and performance overhead, we use `skip` to avoid the effect-binding triggered by `DOM insertion event` causing parent-effect to depend on dependencies of its grandchildren components.
   skip(() => {
-    const parent_source = source_stack.peek();
+    const parent_source = ComponentSource.peek()!;
     children
       .map((child) => warpView(child, parent_source))
       .forEach((child) => child && elem.appendChild(child));
@@ -301,20 +308,23 @@ const mount = (
     selectorOrDom instanceof Node
       ? selectorOrDom
       : document.querySelector(selectorOrDom);
+  const cs = new ComponentSource(ComponentSource.peek(), funcOrComp);
   if (typeof funcOrComp === 'function') {
-    const view = buildFunctionComponent(funcOrComp, props, ...children);
+    const view = buildFunctionComponent(funcOrComp, cs, props, ...children);
     view && container?.appendChild(view);
-    return;
+    return cs;
+  }
+  if (isSetupComponent(funcOrComp)) {
+    const placeholder = buildComponent(funcOrComp, cs, props, ...children);
+    container?.appendChild(placeholder);
+    return cs;
   }
   if (funcOrComp instanceof Node) {
+    cs.__dispose();
     container?.appendChild(funcOrComp);
-    return;
+    return (<any>funcOrComp)[symbols.SELF_CS] as ComponentSource;
   }
-  if (typeof funcOrComp === 'object') {
-    const placeholder = buildComponent(funcOrComp, props, ...children);
-    container?.appendChild(placeholder);
-    return;
-  }
+  throw new Error(`Invalid component type: ${typeof funcOrComp}`);
 };
 
 /**
@@ -329,7 +339,7 @@ const hookComponent = <T extends FunctionComponent | SetupComponent>(
 };
 
 const createThrowAny = () => {
-  const self_source = source_stack.peek();
+  const self_source = ComponentSource.peek();
   return (val: any) => self_source?.emit('throw', val);
 };
 
@@ -353,12 +363,12 @@ export const rh = <
   if (typeof one === 'string') {
     return createElement(one, props, ...children);
   } else if (typeof one === 'function') {
-    return buildFunctionComponent(<any>one, props, ...children);
+    return buildFunctionComponent(<any>one, undefined, props, ...children);
   } else if (one instanceof Element) {
     hydrateElement(one, props, ...children);
     return one;
   } else {
-    return buildComponent(<any>one, props, ...children);
+    return buildComponent(<any>one, undefined, props, ...children);
   }
 };
 rh.mount = mount;

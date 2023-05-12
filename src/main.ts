@@ -9,8 +9,8 @@ export * as reactivity from '@vue/reactivity';
 export type {
   FunctionComponent,
   SetupComponent,
-  rhElem,
-  rhView,
+  ReactiveElement,
+  ReactiveView,
   RenderFunc,
   FC,
 } from './rh';

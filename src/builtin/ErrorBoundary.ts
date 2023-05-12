@@ -1,7 +1,7 @@
 import { ref } from '@vue/reactivity';
-import { source_stack } from '../ComponentSource';
+import { ComponentSource } from '../ComponentSource';
 import { unskip } from '../reactivity';
-import { rh, rhElem } from '../rh';
+import { rh, ReactiveElement } from '../rh';
 
 /**
  * Error Boundary
@@ -12,13 +12,13 @@ export const ErrorBoundary = rh.component({
     onError,
     render,
   }: {
-    fallbackRender: (error: Error, rerender: () => any) => rhElem;
+    fallbackRender: (error: Error, rerender: () => any) => ReactiveElement;
     onError?: (error: Error) => void;
-    render: () => rhElem;
+    render: () => ReactiveElement;
   }) {
-    const self_source = source_stack.peek();
+    const self_source = ComponentSource.peek();
     let catchError = ref(null as null | Error);
-    self_source?.on('throw', (detail: any) => {
+    self_source.on('throw', (detail: any) => {
       if (detail instanceof Error) {
         onError?.(detail);
         catchError.value = detail;
