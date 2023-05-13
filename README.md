@@ -41,7 +41,7 @@
     rh,
     tools,
     utils,
-  } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.module.js';
+  } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.module.mjs';
   const { ref } = utils.reactivity;
 
   const timeStr = ref(new Date().toLocaleString());

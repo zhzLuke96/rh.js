@@ -121,6 +121,8 @@ export const warpView = (
     cs.once('unmount', () => {
       runner.effect.stop();
       disposeEvent();
+      removeElem(viewAnchor);
+      removeElem(currentView);
     });
     return currentView;
   }
@@ -134,8 +136,6 @@ function hydrateRender(render: () => ReactiveElement, cs: ComponentSource) {
   const viewAnchor = createViewAnchor(cs);
   let viewParentElement = null as HTMLElement | null;
   let currentView = viewAnchor as NonNullable<ReactiveView>;
-  // The first update_after is mount
-  cs.once('update_after', (error) => cs.emit('mount', error));
 
   const renderEffectFn = () => {
     cs.emit('update_before');
@@ -169,10 +169,13 @@ function hydrateRender(render: () => ReactiveElement, cs: ComponentSource) {
     (<any>currentView)[symbols.SELF_CS] = cs;
     cs.emit('update_after');
   };
+
   // TIPS: don't replace effect to hookEffect
-  const runner = effect(renderEffectFn, { lazy: false });
+  const renderEffectRunner = effect(renderEffectFn, { lazy: false });
   const disposeEvent = onDomInserted(currentView, (parent, source) => {
     disposeEvent();
+    cs.emit('mount');
+
     viewParentElement = parent;
     // inject anchor
     if (viewAnchor !== source) {
@@ -192,10 +195,11 @@ function hydrateRender(render: () => ReactiveElement, cs: ComponentSource) {
   });
   cs.once('unmount', () => {
     disposeEvent();
-    runner.effect.stop();
+    renderEffectRunner.effect.stop();
     cs.removeAllListeners();
     // Remove Anchor only when unmount
     removeElem(viewAnchor);
+    removeElem(currentView);
   });
   return currentView;
 }
