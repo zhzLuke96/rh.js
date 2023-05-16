@@ -189,7 +189,7 @@ export const setupEffect = (
 
 export const setupWatch = <Value>(
   valueFn: ((prev_value?: Value) => Value) | Ref<Value>,
-  effectFn: (arg1: Value, prev_value: undefined | Value) => any,
+  effectFn: (value: Value, prev_value: undefined | Value) => any,
   options?: ReactiveEffectOptions | undefined
 ) => {
   let value = undefined as undefined | Value;
@@ -205,7 +205,7 @@ export const computed = <T>(
   getter: (previousValue: T | undefined) => T,
   debugOptions?: DebuggerOptions | undefined
 ) => {
-  const value = ref<T>();
+  const value = ref<T>() as Ref<T>;
   setupEffect(() => {
     const previousValue = untrack(value);
     const nextValue = getter(previousValue);
