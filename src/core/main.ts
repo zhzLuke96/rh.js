@@ -22,6 +22,7 @@ export {
   onUnmount,
   onUpdate,
 } from './reactiveHydrate';
+export * from './component';
 
 export * from './ElementSource';
 export * from './FunctionComponent';
