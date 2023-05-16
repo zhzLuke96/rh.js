@@ -37,13 +37,13 @@ export const addElementSourceListener = (
   event: ElementSourceEventKeys,
   fn: () => void,
   once = false
-) => ElementSource.peek()[once ? 'once' : 'on'](event, fn);
+) => useElementSource((es) => es[once ? 'once' : 'on'](event, fn));
 
 export const onMount = (fn: () => void) =>
-  addElementSourceListener('mount', fn, true);
+  useElementSource((es) => es.onMount(fn));
 
 export const onUnmount = (fn: () => void) =>
-  addElementSourceListener('unmount', fn, true);
+  useElementSource((es) => es.onUnmount(fn));
 
 export const onUpdate = (fn: () => void) =>
   addElementSourceListener('update', fn);

@@ -28,6 +28,11 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
   __parent_source = ElementSource.source_stack.peek();
   __container_source = this as ElementSource | undefined;
 
+  private states = {
+    mounted: false,
+    unmounted: false,
+  };
+
   constructor(public host?: any, lazy_unmount?: boolean) {
     super();
 
@@ -41,6 +46,10 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     // throw link
     this.on('throw', (x) => this.__parent_source?.emit('throw', x));
 
+    // sync state
+    this.on('mount', () => (this.states.mounted = true));
+    this.on('unmount', () => (this.states.unmounted = true));
+
     this.__parent_source.once('unmount', () => {
       this.dispose();
       this.emit('unmount');
@@ -53,6 +62,22 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
           this.emit('unmount');
         });
       });
+    }
+  }
+
+  onMount(fn: () => any) {
+    if (this.states.mounted) {
+      fn();
+    } else {
+      this.once('mount', fn);
+    }
+  }
+
+  onUnmount(fn: () => any) {
+    if (this.states.unmounted) {
+      fn();
+    } else {
+      this.once('unmount', fn);
     }
   }
 
