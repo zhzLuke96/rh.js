@@ -22,10 +22,11 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
   __context = {} as Record<keyof any, any>;
 
   static peek() {
-    return this.source_stack.peek() || this.global_source;
+    return ElementSource.source_stack.peek() || ElementSource.global_source;
   }
 
-  __parent_source = ElementSource.source_stack.peek();
+  __parent_source =
+    ElementSource.source_stack.peek() || ElementSource.global_source;
   __container_source = this as ElementSource | undefined;
 
   private states = {
@@ -47,8 +48,8 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     this.on('throw', (x) => this.__parent_source?.emit('throw', x));
 
     // sync state
-    this.on('mount', () => (this.states.mounted = true));
-    this.on('unmount', () => (this.states.unmounted = true));
+    this.once('mount', () => (this.states.mounted = true));
+    this.once('unmount', () => (this.states.unmounted = true));
 
     this.__parent_source.once('unmount', () => {
       this.dispose();
