@@ -7,8 +7,6 @@ export class FunctionComponent<
   Props extends Record<keyof any, any>,
   ChildrenList extends any[] = any[]
 > extends SetupComponent<Props, ChildrenList, unknown> {
-  source = new ElementSource(this);
-
   constructor(
     protected _function_define: FunctionComponentDefine<Props, ChildrenList>,
     props: Props,

@@ -20,7 +20,7 @@ interface IReactiveElement {
 }
 
 export class ReactiveElement implements IReactiveElement {
-  source = new ElementSource(this);
+  source!: ElementSource;
 
   viewAnchor = createAnchor();
   currentView = this.viewAnchor as Node;
@@ -28,15 +28,21 @@ export class ReactiveElement implements IReactiveElement {
 
   private dispose_onDomInserted?: () => any;
 
-  constructor() {
+  protected _initialized = false;
+  protected _initialize() {
+    if (this._initialized) {
+      return;
+    }
+    this._initialized = true;
     this.initialize();
   }
-
   protected initialize() {
+    this.source ||= new ElementSource(this);
     this.source.once('unmount', () => this.dispose());
   }
 
   ensureEffectRunner() {
+    this._initialize();
     if (this.renderEffectRunner) return this.renderEffectRunner;
 
     this.renderEffectRunner = effect(this.update.bind(this), {
