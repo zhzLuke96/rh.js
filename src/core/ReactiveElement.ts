@@ -113,18 +113,20 @@ export class ReactiveElement implements IReactiveElement {
   }
 
   static warp(view: any): Node | null {
+    if (typeof view !== 'function' && !isRef(view)) {
+      return ReactiveElement.warpView(view);
+    }
+    const element = new ReactiveElement();
+    let viewRender: () => any;
     if (typeof view === 'function') {
-      const element = new ReactiveElement();
-      element.render = view;
-      element.ensureEffectRunner();
-      return element.currentView;
+      viewRender = view;
+    } else if (isRef(view)) {
+      viewRender = () => unref(view);
+    } else {
+      throw new Error('Unknown view type.');
     }
-    if (isRef(view)) {
-      const element = new ReactiveElement();
-      element.render = () => ReactiveElement.warpView(unref(view));
-      element.ensureEffectRunner();
-      return element.currentView;
-    }
-    return ReactiveElement.warpView(view);
+    element.render = () => ReactiveElement.warpView(viewRender());
+    element.ensureEffectRunner();
+    return element.currentView;
   }
 }
