@@ -57,8 +57,6 @@ const connectStyleSheet = (
 
 /**
  * Adaptive nested css style definition components
- *
- * TODO: Plan to refactor the specific implementation below to utilize constructed stylesheets and inject them into document.adoptedStyleSheets, rather than creating DOM elements directly.
  */
 export const Style: StyleComponent = (props, styleOrFunc) => {
   const _styleFn = zipStyleFn(props.styleFn || props.style || styleOrFunc);
@@ -72,11 +70,8 @@ export const Style: StyleComponent = (props, styleOrFunc) => {
 /**
  * style for global (inject to html top element)
  */
-export const GlobalStyle: StyleComponent = (
-  { styleFn, style, ...props },
-  styleOrFunc
-) => {
-  const _styleFn = zipStyleFn(styleFn || style || styleOrFunc);
+export const GlobalStyle: StyleComponent = (props, styleOrFunc) => {
+  const _styleFn = zipStyleFn(props.styleFn || props.style || styleOrFunc);
   const { anchor } = connectStyleSheet(_styleFn, ':root');
   return () => anchor;
 };

@@ -8,21 +8,18 @@
 
 **FEATURES:**
 
-- Packed only `< 9kb`
-- Source core code within `~300` lines (including type annotations)
+- Packed `main.js` only `~15kb`
 - Based on `@vue/reactivity`
-- Easy to use function component patterns
+- function component patterns
 - Not extras syntax, all in js. 
-- Not required complex algo / magic, no VDom and always dom.
-- JSX style, fit engineering
+- No VDom, always dom.
+- JSX style
 
 # Table of Contents
 
 - [rh.js](#rhjs)
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
-  - [Component (with JSX)](#component-with-jsx)
-  - [Function Component](#function-component)
 - [More @Rhjs Details](#more-rhjs-details)
 - [Related Efforts](#related-efforts)
 - [Maintainers](#maintainers)
@@ -33,80 +30,7 @@
 
 # Quick Start
 
-```html
-<div id="app"></div>
-
-<script type="module">
-  import {
-    rh,
-    tools,
-    utils,
-  } from 'https://unpkg.com/@rhjs/rh@latest/dist/main.module.mjs';
-  const { ref } = utils.reactivity;
-
-  const timeStr = ref(new Date().toLocaleString());
-  setInterval(() => (timeStr.value = new Date().toLocaleString()), 1000);
-
-  const app = rh('h1', {}, tools.rt`hello world, now: ${timeStr}`);
-  // app just a HTML element
-  document.querySelector('#app').appendChild(app);
-</script>
-```
-
-## Component (with JSX)
-> jsx+vite+rhjs project template: https://github.com/zhzLuke96/rhjs-vite-tsx-starter
-
-```jsx
-import { rh, reactivity } from '@rhjs/rh';
-
-const Counter = rh.component({
-  setup({ defValue = 0 }) {
-      const count = reactivity.ref(defValue);
-      return {
-        count,
-        inc: () => count.value++,
-        dec: () => count.value--,
-      };
-  },
-  render({ count, inc, dec }) {
-    return (
-      <div>
-        <h1>count: {count}</h1>
-        <br/>
-        <button onClick={inc}>+</button>
-        <button onClick={dec}>-</button>
-      </div>
-    )
-  }
-});
-
-rh.mount('#app', Counter);
-```
-
-> rh.component returns the original value, similar to an `identity` function, but with added TypeScript type checking.
-
-## Function Component
-```jsx
-import { rh, reactivity } from '@rhjs/rh';
-
-const Counter = ({ defValue = 0 }) => {
-    const count = ref(defValue);
-
-    const inc = () => count.value++;
-    const dec = () => count.value--;
-
-    return () => (
-      <div>
-        <h1>count: {count}</h1>
-        <br/>
-        <button onClick={inc}>+</button>
-        <button onClick={dec}>-</button>
-      </div>
-    )
-};
-
-rh.mount('#app', Counter);
-```
+> TODO: rhjs-v1-dev
 
 # More @Rhjs Details
 - demos page: https://zhzluke96.github.io/rhjs-demos/#demo
