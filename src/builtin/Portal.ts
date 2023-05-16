@@ -1,5 +1,4 @@
-import { onUnmount } from '../ComponentSource';
-import { rh } from '../rh';
+import { onUnmount, rh } from '../core/reactiveHydrate';
 
 /**
  * Portal Component

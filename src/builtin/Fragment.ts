@@ -1,18 +1,18 @@
 import {
-  hookEffect,
   onUnmount,
-  ComponentSource,
-  useCS,
-} from '../ComponentSource';
-import { onDomInserted } from '../misc';
-import { rh, warpView } from '../rh';
+  setupEffect,
+  useElementSource,
+} from '../core/reactiveHydrate';
+import { onDomMutation } from '../common/onDomMutation';
+import { ReactiveElement } from '../core/ReactiveElement';
+import { component } from '../core/component';
 
 type FragmentChildren = Element | Comment;
 
 /**
  * Fragment Component
  */
-export const Fragment = rh.component({
+export const Fragment = component({
   setup(_, childrenOrChildrenRender: any, ...children: any[]) {
     const component_context = {
       anchor: document.createTextNode(''),
@@ -20,11 +20,10 @@ export const Fragment = rh.component({
       parentNode: null as null | HTMLElement,
     };
 
-    const cs = ComponentSource.peek();
     const childrenRenderFunc = (
       (childrenFn: () => any[]) => () =>
         childrenFn()
-          .map((child) => warpView(child, cs))
+          .map((child) => ReactiveElement.warp(child))
           .filter(Boolean)
     )(
       typeof childrenOrChildrenRender === 'function'
@@ -60,25 +59,35 @@ export const Fragment = rh.component({
       component_context.children = newChildren as any[];
     };
 
-    const effectRunner = hookEffect(childrenRender);
-    const disposeEvent = onDomInserted(component_context.anchor, (parent) => {
+    const [effectRunner, stopEffect] = setupEffect(childrenRender);
+    const disposeEvent = onDomMutation(
+      component_context.anchor,
+      (parent) => {
+        component_context.parentNode = parent;
+        // TIPS: Here instead of calling childrenRender directly but calling runner, it is to control the scope of tracking
+        effectRunner();
+      },
+      'DOMNodeInserted'
+    );
+    const unmountEffect = () => {
       disposeEvent();
-      component_context.parentNode = parent;
-      effectRunner();
-    });
-    onUnmount(disposeEvent);
+      stopEffect();
+      component_context.anchor.remove();
+      component_context.children.forEach((view) => view?.remove());
+    };
+    onUnmount(unmountEffect);
 
-    useCS((cs) => {
-      cs.__parent_source?.once('update_before', () => {
+    useElementSource((es) => {
+      es.__parent_source?.once('update_before', () => {
         component_context.children.forEach((view) => view?.remove());
-        cs.__parent_source?.once('update_after', () => {
+        es.__parent_source?.once('update_after', () => {
           component_context.anchor.remove();
         });
       });
     });
     return component_context;
   },
-  render(ctx) {
+  render(_, ctx) {
     return ctx.anchor;
   },
 });

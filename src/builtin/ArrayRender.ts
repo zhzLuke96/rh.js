@@ -1,8 +1,7 @@
 import { shallowRef } from '@vue/reactivity';
 import { Fragment } from './Fragment';
-import { rh } from '../rh';
-import { untrack, watch } from '../reactivity';
 import * as equal from 'fast-deep-equal';
+import { setupWatch, untrack, rh } from '../core/reactiveHydrate';
 
 interface MapProps<T> {
   getItems: () => T[];
@@ -29,7 +28,7 @@ export const ArrayRender = <T>({
     { data: T; node: HTMLElement; del?: boolean }[]
   >([]);
 
-  watch(
+  setupWatch(
     getItems,
     (items) => {
       const itemNodes = untrack(itemNodesRef);

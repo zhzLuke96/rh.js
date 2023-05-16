@@ -1,7 +1,13 @@
-import { NestedCSSProperties, rGlobalStyle, rStyle } from '../tools/rStyle';
-import { FC, rh } from '../rh';
-import { onUnmount } from '../ComponentSource';
-import { onDomInserted } from '../misc';
+import { onDomMutation } from '../common/onDomMutation';
+import { FC } from '../core/types';
+import { onUnmount, setupEffect } from '../core/reactiveHydrate';
+import {
+  createStyleSheet,
+  NestedCSSProperties,
+} from './CSSStyleSheet/StyleSheet';
+
+const uniqClassName = () =>
+  `__s_${Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)}`;
 
 type StyleFn = () => NestedCSSProperties;
 type StyleComponent = FC<
@@ -17,7 +23,7 @@ const zipStyleFn = (
   styleOrFn?: StyleFn | NestedCSSProperties | null | void
 ): StyleFn => {
   if (!styleOrFn) {
-    return () => ({ '--required-style-function': '1' });
+    throw new Error('styleOrFn is required.');
   }
   if (typeof styleOrFn === 'function') {
     return styleOrFn;
@@ -25,30 +31,42 @@ const zipStyleFn = (
   return () => styleOrFn;
 };
 
+const connectStyleSheet = (
+  styleFn: StyleFn,
+  rootNodeSelector: string,
+  className?: string
+) => {
+  const { applySheet, removeSheet, parseStyle } = createStyleSheet(styleFn);
+  const anchor = document.createTextNode('');
+
+  setupEffect(() => parseStyle(rootNodeSelector));
+  onUnmount(onDomMutation(anchor, applySheet, 'DOMNodeInserted'));
+  onUnmount(onDomMutation(anchor, removeSheet, 'DOMNodeRemoved'));
+  onUnmount(removeSheet);
+
+  if (className) {
+    const removeClassName = (parent: Element) =>
+      parent?.classList?.remove(className);
+    const addClassName = (parent: Element) => parent?.classList?.add(className);
+    onUnmount(onDomMutation(anchor, addClassName, 'DOMNodeInserted'));
+    onUnmount(onDomMutation(anchor, removeClassName, 'DOMNodeRemoved'));
+  }
+
+  return { anchor };
+};
+
 /**
  * Adaptive nested css style definition components
  *
  * TODO: Plan to refactor the specific implementation below to utilize constructed stylesheets and inject them into document.adoptedStyleSheets, rather than creating DOM elements directly.
  */
-export const Style: StyleComponent = (
-  { styleFn, style, ...props },
-  styleOrFunc
-) => {
-  const _styleFn = zipStyleFn(styleFn || style || styleOrFunc);
-  const { className, dom } = rStyle(_styleFn);
-  let parentNode: any;
-  const disposeEvent = onDomInserted(dom, (parent) => {
-    disposeEvent();
-    parent.classList.add(className);
-    parentNode?.classList.remove(className);
-    parentNode = parent;
-  });
-  onUnmount(() => {
-    disposeEvent();
-    parentNode?.classList.remove(className);
-  });
-  rh(dom, props);
-  return () => dom;
+export const Style: StyleComponent = (props, styleOrFunc) => {
+  const _styleFn = zipStyleFn(props.styleFn || props.style || styleOrFunc);
+
+  const className = uniqClassName();
+  const { anchor } = connectStyleSheet(_styleFn, `.${className}`, className);
+
+  return () => anchor;
 };
 
 /**
@@ -59,7 +77,6 @@ export const GlobalStyle: StyleComponent = (
   styleOrFunc
 ) => {
   const _styleFn = zipStyleFn(styleFn || style || styleOrFunc);
-  const { dom } = rGlobalStyle(_styleFn);
-  rh(dom, props);
-  return () => dom;
+  const { anchor } = connectStyleSheet(_styleFn, ':root');
+  return () => anchor;
 };

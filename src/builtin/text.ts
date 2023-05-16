@@ -1,10 +1,10 @@
 import { isRef, Ref } from '@vue/reactivity';
-import { hookEffect } from '../ComponentSource';
+import { setupEffect } from '../core/reactiveHydrate';
 
 /**
  * reactivity text node
  */
-export const rt = (
+export const text = (
   strings: TemplateStringsArray,
   ...slots: Array<(() => any) | Ref>
 ) => {
@@ -15,12 +15,11 @@ export const rt = (
     const slot = slots[idx];
     const slotNode = document.createTextNode('');
     if (typeof slot === 'function') {
-      hookEffect(() => (slotNode.textContent = slot()));
+      setupEffect(() => (slotNode.textContent = slot()));
     } else if (isRef(slot)) {
-      hookEffect(() => (slotNode.textContent = String(slot.value)));
+      setupEffect(() => (slotNode.textContent = String(slot.value)));
     }
     ret.push(slotNode);
   }
   return ret;
 };
-export const rText = rt;

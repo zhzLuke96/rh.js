@@ -1,13 +1,13 @@
 import { ref } from '@vue/reactivity';
-import { FunctionComponent, SetupComponent, rh } from '../rh';
+import { ComponentDefine } from '../core/types';
+import { rh } from '../core/reactiveHydrate';
 
 type ModuleLike<T> = { default: T };
-type RhComponent = FunctionComponent | SetupComponent;
-export const lazy = <Component extends RhComponent>(
-  module_loader: () => Promise<ModuleLike<RhComponent>>
+export const lazy = <Component extends ComponentDefine>(
+  module_loader: () => Promise<ModuleLike<ComponentDefine>>
 ) => {
-  let module: ModuleLike<RhComponent> | null = null;
-  let p: Promise<ModuleLike<RhComponent>> | null = null;
+  let module: ModuleLike<ComponentDefine> | null = null;
+  let p: Promise<ModuleLike<ComponentDefine>> | null = null;
 
   const ensure_module = () =>
     p || (p = module_loader().then((result) => (module = result)));

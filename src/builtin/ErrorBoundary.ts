@@ -1,22 +1,23 @@
 import { ref } from '@vue/reactivity';
-import { ComponentSource } from '../ComponentSource';
-import { unskip } from '../reactivity';
-import { rh, ReactiveElement } from '../rh';
+import { component } from '../core/component';
+import { skip } from '../core/reactiveHydrate';
+import { ElementView } from '../core/types';
+import { ElementSource } from '../core/ElementSource';
 
 /**
  * Error Boundary
  */
-export const ErrorBoundary = rh.component({
+export const ErrorBoundary = component({
   setup({
     fallbackRender,
     onError,
     render,
   }: {
-    fallbackRender: (error: Error, rerender: () => any) => ReactiveElement;
+    fallbackRender: (error: Error, rerender: () => any) => ElementView;
     onError?: (error: Error) => void;
-    render: () => ReactiveElement;
+    render: () => ElementView;
   }) {
-    const self_source = ComponentSource.peek();
+    const self_source = ElementSource.peek();
     let catchError = ref(null as null | Error);
     self_source.on('throw', (detail: any) => {
       if (detail instanceof Error) {
@@ -32,14 +33,14 @@ export const ErrorBoundary = rh.component({
       childrenRender: render,
     };
   },
-  render({ fallbackRender, rerenderRef, catchError, childrenRender }) {
+  render(_, { fallbackRender, rerenderRef, catchError, childrenRender }) {
     [rerenderRef.value];
     const rerender = () => {
       rerenderRef.value = Date.now();
       catchError.value = null;
     };
     if (catchError.value) {
-      return unskip(() => fallbackRender(catchError.value!, rerender));
+      return skip(() => fallbackRender(catchError.value!, rerender));
     }
     return childrenRender();
   },
