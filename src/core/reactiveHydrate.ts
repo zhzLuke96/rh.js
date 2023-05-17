@@ -16,6 +16,7 @@ import {
   DebuggerOptions,
   deferredComputed as _deferredComputed,
   ref,
+  isRef,
 } from '@vue/reactivity';
 import {
   AnyRecord,
@@ -247,7 +248,16 @@ const skipWrap =
 export const untrack = <Value = unknown>(refObj: Ref<Value> | Value) =>
   skip(() => unref(refObj));
 
-export const useRef = <T>(target: Ref<T>) => {
+type UseRefRet<T> = [
+  () => T,
+  (valueOrUpdateFn: T | ((value: T) => T)) => any,
+  Ref<T>
+];
+
+export function useRef<T>(refObj: UnwrapRef<T>): UseRefRet<T>;
+export function useRef<T>(refObj: Ref<T>): UseRefRet<T>;
+export function useRef<T>(targetRaw: T): UseRefRet<T> {
+  const target = isRef(targetRaw) ? targetRaw : (ref(targetRaw) as Ref<T>);
   const getter = () => unref(target);
   const setter = (valueOrUpdateFn: T | ((value: T) => T)) => {
     if (typeof valueOrUpdateFn === 'function') {
@@ -257,8 +267,8 @@ export const useRef = <T>(target: Ref<T>) => {
       target.value = valueOrUpdateFn;
     }
   };
-  return [getter, setter] as const;
-};
+  return [getter, setter, target] as UseRefRet<T>;
+}
 
 export const useUntrackRef = <T>(target: Ref<T>) => {
   const [getter, setter] = useRef(target);
