@@ -1,6 +1,6 @@
 import { ref } from '@vue/reactivity';
 import { ComponentDefine } from '../core/types';
-import { rh, untrack } from '../core/reactiveHydrate';
+import { rh, untrack, useElementSource } from '../core/reactiveHydrate';
 
 type ModuleLike<T> = { default: T };
 export const lazy = <Component extends ComponentDefine>(
@@ -13,14 +13,16 @@ export const lazy = <Component extends ComponentDefine>(
     p || (p = module_loader().then((result) => (module = result)));
 
   const fnComponent = ((props: any, ...children: any[]) => {
+    const es = useElementSource();
     const moduleRef = ref(module);
     if (!module) {
-      ensure_module().then((module) => {
+      const promise = ensure_module().then((module) => {
         if (untrack(moduleRef)) {
           return;
         }
         moduleRef.value = module;
       });
+      es.emit('throw', promise);
     }
     return () =>
       moduleRef.value ? rh(moduleRef.value.default, props, ...children) : null;

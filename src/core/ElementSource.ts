@@ -72,6 +72,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     } else {
       this.once('mount', fn);
     }
+    return this;
   }
 
   onUnmount(fn: () => any) {
@@ -80,6 +81,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     } else {
       this.once('unmount', fn);
     }
+    return this;
   }
 
   // find component level source

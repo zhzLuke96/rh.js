@@ -6,6 +6,9 @@ import {
 import { onDomMutation } from '../common/onDomMutation';
 import { ReactiveElement } from '../core/ReactiveElement';
 import { component } from '../core/component';
+import { ElementSource } from '../core/ElementSource';
+
+const arrayify = (obj: any) => (Array.isArray(obj) ? obj : [obj]);
 
 type FragmentChildren = Element | Comment;
 
@@ -20,9 +23,12 @@ export const Fragment = component({
       parentNode: null as null | HTMLElement,
     };
 
+    const fragmentES = useElementSource();
+
     const childrenRenderFunc = (
       (childrenFn: () => any[]) => () =>
-        childrenFn()
+        arrayify(childrenFn())
+          .flat(1)
           .map((child) => ReactiveElement.warp(child))
           .filter(Boolean)
     )(
@@ -59,8 +65,12 @@ export const Fragment = component({
       component_context.children = newChildren as any[];
     };
 
-    const [effectRunner, stopEffect] = setupEffect(childrenRender);
-    const disposeEvent = onDomMutation(
+    const [effectRunner, stopEffect] = setupEffect(() => {
+      ElementSource.source_stack.push(fragmentES);
+      childrenRender();
+      ElementSource.source_stack.pop();
+    });
+    const disposeEvent1 = onDomMutation(
       component_context.anchor,
       (parent) => {
         component_context.parentNode = parent;
@@ -69,8 +79,17 @@ export const Fragment = component({
       },
       'DOMNodeInserted'
     );
+    const disposeEvent2 = onDomMutation(
+      component_context.anchor,
+      (parent) => {
+        component_context.children.forEach((view) => view?.remove());
+        component_context.parentNode = null;
+      },
+      'DOMNodeRemoved'
+    );
     const unmountEffect = () => {
-      disposeEvent();
+      disposeEvent1();
+      disposeEvent2();
       stopEffect();
       component_context.anchor.remove();
       component_context.children.forEach((view) => view?.remove());

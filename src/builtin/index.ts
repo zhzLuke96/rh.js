@@ -3,6 +3,7 @@ export * from './Fragment';
 export * from './ArrayRender';
 export * from './Portal';
 export * from './Style';
+export * from './Suspense';
 
 // tools
 export * from './text';

@@ -29,13 +29,17 @@ const isSame = (a: any, b: any) => Object.is(a, b) || a === b;
 
 // element source tools
 
-export const useElementSource = (fn: (es: ElementSource) => void) =>
-  fn(ElementSource.peek());
+export function useElementSource(): ElementSource;
+export function useElementSource<T>(fn: (es: ElementSource) => T): T;
+export function useElementSource<T>(fn?: (es: ElementSource) => T): any {
+  return fn ? fn(ElementSource.peek()) : ElementSource.peek();
+}
 
-type ElementSourceEventKeys = keyof ElementSourceEventTypes;
-export const addElementSourceListener = (
-  event: ElementSourceEventKeys,
-  fn: () => void,
+export const addElementSourceListener = <
+  K extends keyof ElementSourceEventTypes
+>(
+  event: K,
+  fn: ElementSourceEventTypes[K],
   once = false
 ) => useElementSource((es) => es[once ? 'once' : 'on'](event, fn));
 
@@ -48,7 +52,7 @@ export const onUnmount = (fn: () => void) =>
 export const onUpdate = (fn: () => void) =>
   addElementSourceListener('update', fn);
 
-export const onThrow = (fn: () => void) =>
+export const onThrow = (fn: (value?: any) => void) =>
   addElementSourceListener('throw', fn);
 
 type ComponentType =
@@ -184,7 +188,7 @@ export const setupEffect = (
     cleanupCallback = null;
   };
   onUnmount(stopEffect);
-  return [runner, stopEffect];
+  return [runner, stopEffect] as const;
 };
 
 export const setupWatch = <Value>(
