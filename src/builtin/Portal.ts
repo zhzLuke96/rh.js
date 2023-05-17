@@ -5,9 +5,10 @@ import { onUnmount, rh } from '../core/reactiveHydrate';
  */
 export const Portal = (
   { container, ...props }: { container?: HTMLElement; [K: string]: any },
-  ...children: any
+  state: any,
+  children: any[]
 ) => {
-  const marker = document.createTextNode('');
+  const anchor = document.createTextNode('');
 
   const target_container: HTMLElement =
     container || document.createElement('div');
@@ -18,5 +19,5 @@ export const Portal = (
     target_container.parentElement?.removeChild(target_container);
   });
 
-  return () => marker;
+  return () => anchor;
 };

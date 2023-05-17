@@ -86,19 +86,30 @@ export class ReactiveElement implements IReactiveElement {
   }
 
   update(): void {
+    // Check if the current or parent component is unmounted. If so, dispose resources and return.
+    // This prevents the update from being triggered after unmount due to dependency on some ref of the parent component.
+    if (
+      this.source.states.unmounted ||
+      this.source.__container_source?.states.unmounted
+    ) {
+      this.dispose();
+      return;
+    }
+
     this.source.emit('update_before');
     try {
       ElementSource.source_stack.push(this.source);
       this.source.emit('update');
       this._update();
-      ElementSource.source_stack.pop();
     } catch (error) {
       requestAnimationFrame(() => {
-        // *If the component receiving throw is the component itself, it may cause the effect to be merged, so you need to throw at next-tick
+        // Throw the error in the next tick and emit an event to indicate the update failure
+        // This avoids merging effects if the component receiving the error is the same as the current component
         this.source.emit('throw', error);
         console.error(error);
       });
     } finally {
+      ElementSource.source_stack.pop();
       this.source.emit('update_after');
     }
   }

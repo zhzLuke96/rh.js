@@ -13,7 +13,7 @@ type FragmentChildren = Element | Comment;
  * Fragment Component
  */
 export const Fragment = component({
-  setup(_, childrenOrChildrenRender: any, ...children: any[]) {
+  setup(_, [childrenOrChildrenRender, ...children]) {
     const component_context = {
       anchor: document.createTextNode(''),
       children: [] as Array<FragmentChildren>,

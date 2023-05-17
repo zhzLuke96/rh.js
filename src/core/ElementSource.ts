@@ -29,7 +29,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     ElementSource.source_stack.peek() || ElementSource.global_source;
   __container_source = this as ElementSource | undefined;
 
-  private states = {
+  states = {
     mounted: false,
     unmounted: false,
   };
@@ -52,8 +52,8 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     this.once('unmount', () => (this.states.unmounted = true));
 
     this.__parent_source.once('unmount', () => {
-      this.dispose();
       this.emit('unmount');
+      this.dispose();
     });
 
     if (!lazy_unmount) {

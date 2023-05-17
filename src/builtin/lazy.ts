@@ -1,6 +1,6 @@
 import { ref } from '@vue/reactivity';
 import { ComponentDefine } from '../core/types';
-import { rh } from '../core/reactiveHydrate';
+import { rh, untrack } from '../core/reactiveHydrate';
 
 type ModuleLike<T> = { default: T };
 export const lazy = <Component extends ComponentDefine>(
@@ -16,8 +16,10 @@ export const lazy = <Component extends ComponentDefine>(
     const moduleRef = ref(module);
     if (!module) {
       ensure_module().then((module) => {
+        if (untrack(moduleRef)) {
+          return;
+        }
         moduleRef.value = module;
-        console.log(module);
       });
     }
     return () =>
