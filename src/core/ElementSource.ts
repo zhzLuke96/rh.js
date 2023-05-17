@@ -51,13 +51,29 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     this.once('mount', () => (this.states.mounted = true));
     this.once('unmount', () => (this.states.unmounted = true));
 
-    this.__parent_source.once('unmount', () => {
-      this.emit('unmount');
-      this.dispose();
-    });
-
-    if (!lazy_unmount) {
-      // The update_after event of the second parent is equal to unmount
+    if (lazy_unmount) {
+      // - If the current source host is a component that supports lazy unmounting:
+      //   - It needs to establish a link to the top-level container source.
+      //   - The link is created by accessing `__container_source.__parent_source.__container_source`.
+      // - This link helps to ensure proper handling of the component's unmount event.
+      // - The unmount event may be delayed until a later time to optimize application performance.
+      // - Note that:
+      //   - `__container_source` refers to the immediate container source of the component， which could also be self (this).
+      //   - `__parent_source` represents the parent source of the container source, which could also be a component.
+      const lazy_container =
+        this.__container_source === this
+          ? this.__container_source.__parent_source.__container_source
+          : this.__container_source;
+      (lazy_container || this.__parent_source).once('unmount', () => {
+        this.emit('unmount');
+        this.dispose();
+      });
+    } else {
+      this.__parent_source.once('unmount', () => {
+        this.emit('unmount');
+        this.dispose();
+      });
+      // `update_after` event of the second from parent is equal to sub-component `unmount`
       this.__parent_source.once('update_after', () => {
         this.__parent_source?.once('update_after', () => {
           this.emit('unmount');

@@ -90,6 +90,7 @@ export class ReactiveElement implements IReactiveElement {
     // This prevents the update from being triggered after unmount due to dependency on some ref of the parent component.
     if (
       this.source.states.unmounted ||
+      this.source.__parent_source.states.unmounted ||
       this.source.__container_source?.states.unmounted
     ) {
       this.dispose();
