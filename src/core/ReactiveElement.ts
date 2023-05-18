@@ -12,6 +12,7 @@ import { ElementViewRender } from './types';
 
 const createAnchor = () => {
   const viewAnchor = document.createTextNode('');
+  // const viewAnchor = document.createComment('anchor');
   (<any>viewAnchor)[symbols.IS_ANCHOR] = true;
   return viewAnchor;
 };

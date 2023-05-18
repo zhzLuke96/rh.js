@@ -40,8 +40,16 @@ export class ReactiveDOM {
     return this.node;
   }
 
+  private isValidAttributeName(key: string) {
+    return /^[a-zA-Z][\w-]*$/.test(key);
+  }
+
   private hydrateAttribute(key: string, value: any) {
-    if (key.startsWith('__')) {
+    if (
+      key.startsWith('_') ||
+      key.startsWith('$') ||
+      !this.isValidAttributeName(key)
+    ) {
       return;
     }
 
@@ -75,13 +83,26 @@ export class ReactiveDOM {
     this.source.effect(
       () => {
         const val = unref(value);
-        if (typeof val === 'boolean') {
-          val
-            ? this.node.setAttribute(key, '')
-            : this.node.removeAttribute(key);
-        } else {
-          this.node.setAttribute(key, val);
+        if (key === 'value') {
+          (<any>this.node).value = val;
+          return;
         }
+        if (key === 'defaultValue') {
+          if ((<any>this.node).value) {
+            return;
+          }
+          (<any>this.node).value = val;
+          return;
+        }
+        if (typeof val === 'boolean') {
+          if (val) {
+            this.node.setAttribute(key, '');
+          } else {
+            this.node.removeAttribute(key);
+          }
+          return;
+        }
+        this.node.setAttribute(key, val);
       },
       { lazy: false }
     );
