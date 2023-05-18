@@ -1,5 +1,4 @@
 import { symbols } from '../constants';
-import { ElementSource } from './ElementSource';
 import { SetupComponent } from './SetupComponent';
 import { FunctionComponentDefine } from './types';
 

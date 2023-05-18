@@ -30,6 +30,7 @@ export class SetupComponent<
   protected initializeComponent() {
     const node_cached = '__node_cached' in this.props;
     this.source = new ElementSource(this, node_cached);
+    this.source.once('unmount', () => this.dispose());
     this.installSource();
     this.initializeSetup();
   }

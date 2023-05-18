@@ -25,8 +25,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     return ElementSource.source_stack.peek() || ElementSource.global_source;
   }
 
-  __parent_source =
-    ElementSource.source_stack.peek() || ElementSource.global_source;
+  __parent_source = ElementSource.source_stack.peek();
   __container_source = this as ElementSource | undefined;
 
   states = {
@@ -62,7 +61,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
       //   - `__parent_source` represents the parent source of the container source, which could also be a component.
       const lazy_container =
         this.__container_source === this
-          ? this.__container_source.__parent_source.__container_source
+          ? this.__container_source.__parent_source?.__container_source
           : this.__container_source;
       (lazy_container || this.__parent_source).once('unmount', () => {
         this.emit('unmount');
@@ -75,7 +74,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
       });
       // `update_after` event of the second from parent is equal to sub-component `unmount`
       this.__parent_source.once('update_after', () => {
-        this.__parent_source?.once('update_after', () => {
+        this.__parent_source!.once('update_after', () => {
           this.emit('unmount');
         });
       });

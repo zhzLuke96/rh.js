@@ -140,9 +140,18 @@ export const reactiveHydrate = (
 
 export const rh = reactiveHydrate;
 
-export const mount = (
+type MountFunction = {
+  (
+    containerOrSelector: Element | string,
+    componentDefine: ComponentDefine<AnyRecord, any[], any>,
+    props?: Record<keyof any, any>
+  ): ComponentType;
+  (containerOrSelector: Element | string, element: Element): null;
+};
+
+export const mount: MountFunction = (
   containerOrSelector: Element | string,
-  componentDefine: ComponentDefine<AnyRecord, any[], any>,
+  componentDefineOrElement: ComponentDefine<AnyRecord, any[], any> | Element,
   props?: Record<keyof any, any>
 ) => {
   const container =
@@ -152,9 +161,12 @@ export const mount = (
   if (!container) {
     throw new Error(`Could not find container: ${containerOrSelector}`);
   }
-  const componentInstance = buildComponent(componentDefine, props);
+  if (componentDefineOrElement instanceof Element) {
+    container.appendChild(componentDefineOrElement);
+    return null as any; // not bad....
+  }
+  const componentInstance = buildComponent(componentDefineOrElement, props);
   componentInstance.ensureEffectRunner();
-
   container.appendChild(componentInstance.currentView);
   return componentInstance;
 };

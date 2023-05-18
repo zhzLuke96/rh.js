@@ -1,33 +1,37 @@
 import { NestedCSSProperties } from './StyleSheet';
 
 export function parseCSSProps(
-  css: NestedCSSProperties,
-  rootNode: string,
-  format = false
+  cssObject: NestedCSSProperties,
+  rootNodeSelector: string,
+  beautify = false
 ) {
-  const enter_symbol = format ? '\n' : ' ';
-  const stack = [{ node: rootNode, css: css }];
+  const enter_symbol = beautify ? '\n' : ' ';
+  const stack = [{ nodeSelector: rootNodeSelector, cssObject }];
   let result = '';
 
   while (stack.length > 0) {
-    const { node, css } = stack.pop()!;
-    result += `${node} {${enter_symbol}`;
+    const { nodeSelector, cssObject } = stack.pop()!;
+    result += `${nodeSelector} {${enter_symbol}`;
 
-    for (const prop in css) {
-      const value = css[prop];
-      if (typeof value === 'object') {
-        const childNode = prop.startsWith('&')
-          ? node + prop.slice(1).replace(/&/g, node)
-          : node + ' ' + prop;
-        stack.push({ node: childNode, css: value as NestedCSSProperties });
+    for (const prop in cssObject) {
+      const propValue = cssObject[prop];
+      if (typeof propValue === 'object') {
+        const isRootNode = nodeSelector === ':root';
+        const childNodeSelector = prop.startsWith('&')
+          ? nodeSelector + prop.slice(1).replace(/&/g, nodeSelector)
+          : `${isRootNode ? '' : nodeSelector} ${prop}`.trim();
+        stack.push({
+          nodeSelector: childNodeSelector,
+          cssObject: propValue as NestedCSSProperties,
+        });
       } else {
-        if (typeof value === 'string' && !value.trim()) {
+        if (typeof propValue === 'string' && !propValue.trim()) {
           continue;
         }
-        if (value === null || value === undefined) {
+        if (propValue === null || propValue === undefined) {
           continue;
         }
-        result += `${hyphenate(prop)}: ${css[prop]};${enter_symbol}`;
+        result += `${hyphenate(prop)}: ${cssObject[prop]};${enter_symbol}`;
       }
     }
 

@@ -1,7 +1,14 @@
-import { effect, isRef, ReactiveEffectRunner, unref } from '@vue/reactivity';
+import {
+  effect,
+  isRef,
+  ReactiveEffectRunner,
+  Ref,
+  unref,
+} from '@vue/reactivity';
 import { symbols } from '../constants';
 import { onDomMutation } from '../common/onDomMutation';
 import { ElementSource } from './ElementSource';
+import { ElementViewRender } from './types';
 
 const createAnchor = () => {
   const viewAnchor = document.createTextNode('');
@@ -25,6 +32,8 @@ export class ReactiveElement implements IReactiveElement {
   viewAnchor = createAnchor();
   currentView = this.viewAnchor as Node;
   renderEffectRunner?: ReactiveEffectRunner;
+
+  rawTarget?: any; // for debugging
 
   private dispose_onDomInserted?: () => any;
 
@@ -71,6 +80,7 @@ export class ReactiveElement implements IReactiveElement {
     return this.renderEffectRunner;
   }
 
+  // this is abstract function
   render(): Node | null {
     return null;
   }
@@ -90,7 +100,7 @@ export class ReactiveElement implements IReactiveElement {
     // This prevents the update from being triggered after unmount due to dependency on some ref of the parent component.
     if (
       this.source.states.unmounted ||
-      this.source.__parent_source.states.unmounted ||
+      this.source.__parent_source?.states.unmounted ||
       this.source.__container_source?.states.unmounted
     ) {
       this.dispose();
@@ -122,6 +132,20 @@ export class ReactiveElement implements IReactiveElement {
     this.dispose_onDomInserted?.();
   }
 
+  static fromRender(render: ElementViewRender) {
+    const element = new ReactiveElement();
+    element.render = () => ReactiveElement.warpView(render());
+    element.rawTarget = render;
+    return element;
+  }
+
+  static fromRef(viewRef: Ref<any>) {
+    const element = new ReactiveElement();
+    element.render = () => ReactiveElement.warpView(unref(viewRef));
+    element.rawTarget = viewRef;
+    return element;
+  }
+
   static warpView(view: any): Node | null {
     if (view instanceof Node || view === null) {
       return view;
@@ -134,16 +158,14 @@ export class ReactiveElement implements IReactiveElement {
     if (typeof view !== 'function' && !isRef(view)) {
       return ReactiveElement.warpView(view);
     }
-    const element = new ReactiveElement();
-    let viewRender: () => any;
+    let element: ReactiveElement;
     if (typeof view === 'function') {
-      viewRender = view;
+      element = ReactiveElement.fromRender(view);
     } else if (isRef(view)) {
-      viewRender = () => unref(view);
+      element = ReactiveElement.fromRef(view);
     } else {
       throw new Error('Unknown view type.');
     }
-    element.render = () => ReactiveElement.warpView(viewRender());
     element.ensureEffectRunner();
     return element.currentView;
   }

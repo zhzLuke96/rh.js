@@ -44,12 +44,12 @@ export function provide<T = unknown>(
  * Injects a key-value pair into the current context.
  * @param key - the key to inject
  * @param value - the value to inject
- * @throws an error if called outside the contextify component
+ * @throws an error if called outside component
  */
 export function inject(key: keyof any, value: any) {
   const source: ElementSource | undefined = ElementSource.peek();
   if (!source?.__container_source) {
-    throw new Error(`inject must be called inside contextify Component`);
+    throw new Error(`inject must be called inside Component`);
   }
   source.__container_source.__context[key] = value;
 }

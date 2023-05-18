@@ -1,15 +1,16 @@
 import { onDomMutation } from '../common/onDomMutation';
-import { FC } from '../core/types';
+import { AnyRecord, FC } from '../core/types';
 import { onUnmount, setupEffect } from '../core/reactiveHydrate';
 import {
   createStyleSheet,
   NestedCSSProperties,
 } from './CSSStyleSheet/StyleSheet';
+import { useContainerContextProxy } from '../core/context';
 
 const uniqClassName = () =>
   `__s_${Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)}`;
 
-type StyleFn = () => NestedCSSProperties;
+type StyleFn = (contextProxy: AnyRecord) => NestedCSSProperties;
 type StyleComponent = FC<
   {
     style?: NestedCSSProperties;
@@ -36,7 +37,10 @@ const connectStyleSheet = (
   rootNodeSelector: string,
   className?: string
 ) => {
-  const { applySheet, removeSheet, parseStyle } = createStyleSheet(styleFn);
+  const context = useContainerContextProxy();
+  const { applySheet, removeSheet, parseStyle } = createStyleSheet(() =>
+    styleFn(context)
+  );
   const anchor = document.createTextNode('');
 
   setupEffect(() => parseStyle(rootNodeSelector));
