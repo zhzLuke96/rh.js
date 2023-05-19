@@ -1,6 +1,6 @@
 export * from '@vue/reactivity';
 export {
-  buildComponent,
+  createComponent,
   reactiveHydrate,
   rh,
   mount,
@@ -10,6 +10,7 @@ export {
   computed,
   deferredComputed,
   skip,
+  resume,
   untrack,
   depend,
   unrefAll,

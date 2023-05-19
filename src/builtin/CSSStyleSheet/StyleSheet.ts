@@ -6,11 +6,14 @@ export type NestedCSSProperties = CSSProperties & {
   [k: string]: NestedCSSProperties | CSSProperties[keyof CSSProperties];
 };
 
-export const createStyleSheet = (styleFn: () => NestedCSSProperties) => {
+export const createStyleSheet = (
+  styleFn: () => NestedCSSProperties,
+  scopedSelector?: string
+) => {
   const sheet = new CSSStyleSheet();
   const parseStyle = (rootNode: string) => {
     const cssStyle = styleFn();
-    const cssText = parseCSSProps(cssStyle, rootNode);
+    const cssText = parseCSSProps(cssStyle, rootNode, { scopedSelector });
     sheet.replaceSync(cssText);
   };
   let adopted = false;

@@ -1,25 +1,64 @@
 import { NestedCSSProperties } from './StyleSheet';
 
+type ParseCSSPropsOptions = {
+  beautify?: boolean;
+  scopedSelector?: string;
+};
+
+function processSelector(
+  selector: string,
+  parentSelector: string,
+  scopedSelector = ''
+) {
+  const parent = parentSelector === ':root' ? '' : parentSelector;
+  const combine = (arr1: string[], arr2: string[]) =>
+    arr1.flatMap((x) => arr2.map((y) => [x, y]));
+  const blocks = selector
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const parentBlocks = parent
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const allBlocks = combine(blocks, parentBlocks);
+  const replaceAmpersand = ([child, parent]: string[]) =>
+    child.startsWith('&') ? child.replace(/&/g, parent) : `${parent} ${child}`;
+  const addScope = (block: string) =>
+    `${block.replace(scopedSelector || '', '')}${scopedSelector || ''}`.trim();
+  return allBlocks.map(replaceAmpersand).map(addScope).join(',');
+}
+
 export function parseCSSProps(
   cssObject: NestedCSSProperties,
   rootNodeSelector: string,
-  beautify = false
+  { beautify = false, scopedSelector = '' }: ParseCSSPropsOptions
 ) {
   const enter_symbol = beautify ? '\n' : ' ';
-  const stack = [{ nodeSelector: rootNodeSelector, cssObject }];
-  let result = '';
+  const stack = [
+    { nodeSelector: rootNodeSelector + scopedSelector, cssObject },
+  ];
+  const cssBlocks = [] as {
+    selector: string;
+    cssText: string;
+  }[];
 
   while (stack.length > 0) {
     const { nodeSelector, cssObject } = stack.pop()!;
-    result += `${nodeSelector} {${enter_symbol}`;
+    const block = {
+      selector: nodeSelector,
+      cssText: '',
+    };
 
     for (const prop in cssObject) {
       const propValue = cssObject[prop];
       if (typeof propValue === 'object') {
-        const isRootNode = nodeSelector === ':root';
-        const childNodeSelector = prop.startsWith('&')
-          ? nodeSelector + prop.slice(1).replace(/&/g, nodeSelector)
-          : `${isRootNode ? '' : nodeSelector} ${prop}`.trim();
+        const selector = prop;
+        const childNodeSelector = processSelector(
+          selector,
+          nodeSelector,
+          scopedSelector
+        );
         stack.push({
           nodeSelector: childNodeSelector,
           cssObject: propValue as NestedCSSProperties,
@@ -31,13 +70,20 @@ export function parseCSSProps(
         if (propValue === null || propValue === undefined) {
           continue;
         }
-        result += `${hyphenate(prop)}: ${cssObject[prop]};${enter_symbol}`;
+        block.cssText += `${hyphenate(prop)}: ${
+          cssObject[prop]
+        };${enter_symbol}`;
       }
     }
 
-    result += `}\n`;
+    if (block.cssText.trim()) {
+      cssBlocks.push(block);
+    }
   }
 
+  const result = cssBlocks
+    .map((cssBlock) => `${cssBlock.selector}{${cssBlock.cssText}}`)
+    .join('\n');
   return result.trim();
 }
 

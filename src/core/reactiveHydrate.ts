@@ -17,6 +17,7 @@ import {
   deferredComputed as _deferredComputed,
   ref,
   isRef,
+  enableTracking,
 } from '@vue/reactivity';
 import {
   AnyRecord,
@@ -60,7 +61,7 @@ type ComponentType =
   | FunctionComponent<any, any>
   | SetupComponent<any, any, any>;
 
-const injectCachedComponent = (key?: string) => {
+const getCachedComponent = (key?: string) => {
   if (!key) {
     return;
   }
@@ -73,10 +74,7 @@ const injectCachedComponent = (key?: string) => {
   return __container_source.__context[symbols.CACHE_NODES][key];
 };
 
-const provideCachedComponent = (
-  key: string | undefined,
-  component: ComponentType
-) => {
+const cacheComponent = (key: string | undefined, component: ComponentType) => {
   if (!key) {
     return;
   }
@@ -89,20 +87,26 @@ const provideCachedComponent = (
   __container_source.__context[symbols.CACHE_NODES][key] = component;
 };
 
-export const buildComponent = (
+export const createComponent = (
   define: ComponentDefine<AnyRecord, any[], any>,
   props: Record<keyof any, any> = {},
   children: any[] = []
 ) => {
   const { key } = props;
   delete props['key'];
-  if (key) props['__node_cached'] = true;
-  const cachedComponent = injectCachedComponent(key);
-  if (cachedComponent) return cachedComponent as ComponentType;
+
+  if (key) {
+    props['__node_cached'] = true;
+  }
+
+  const cachedComponent = getCachedComponent(key);
+  if (cachedComponent) {
+    return cachedComponent as ComponentType;
+  }
 
   if (typeof define === 'function') {
     const componentInstance = new FunctionComponent(define, props, children);
-    provideCachedComponent(key, componentInstance);
+    cacheComponent(key, componentInstance);
     return componentInstance;
   }
   if (
@@ -111,7 +115,7 @@ export const buildComponent = (
     typeof define.setup === 'function'
   ) {
     const componentInstance = new SetupComponent(define, props, children);
-    provideCachedComponent(key, componentInstance);
+    cacheComponent(key, componentInstance);
     return componentInstance;
   }
   throw new Error(
@@ -119,9 +123,18 @@ export const buildComponent = (
   );
 };
 
+/**
+ * A function that creates a component or DOM node from the provided arguments.
+ *
+ * @param type The type of the component or DOM node to create.
+ * - This can be a string, an `Element` instance, a `FunctionComponentDefine` function, or a `SetupComponentDefine` object.
+ * @param props An object containing the properties to assign to the created component or DOM node. Optional.
+ * @param children An array containing child components or nodes to populate the contents of the created component or DOM node.
+ * @returns A `Node` object representing the created component or DOM node.
+ */
 export const reactiveHydrate = (
   type: string | Element | FunctionComponentDefine | SetupComponentDefine,
-  props?: Record<keyof any, any>,
+  props?: Record<keyof any, any> | null | undefined,
   ...children: any[]
 ) => {
   // props may be => null
@@ -133,11 +146,22 @@ export const reactiveHydrate = (
     const dom = new ReactiveDOM(type, props, children);
     return dom.node;
   }
-  const componentInstance = buildComponent(type, props, children);
+  const componentInstance = createComponent(type, props, children);
   componentInstance.ensureEffectRunner();
   return componentInstance.currentView;
 };
 
+/**
+ * A function that creates a component or DOM node from the provided arguments.
+ *
+ * ``` ts
+ *
+ * const node = rh('div', null, rh('span', null, 'Hello world'));
+ * console.log(node);
+ * // <div><span>Hello world</span></div>
+ *
+ * ```
+ */
 export const rh = reactiveHydrate;
 
 type MountFunction = {
@@ -165,7 +189,7 @@ export const mount: MountFunction = (
     container.appendChild(componentDefineOrElement);
     return null as any; // not bad....
   }
-  const componentInstance = buildComponent(componentDefineOrElement, props);
+  const componentInstance = createComponent(componentDefineOrElement, props);
   componentInstance.ensureEffectRunner();
   container.appendChild(componentInstance.currentView);
   return componentInstance;
@@ -257,6 +281,16 @@ const skipWrap =
   (...args: ARGS) =>
     skip(fn, ...args);
 
+export const resume = <RET = unknown, ARGS extends any[] = any[]>(
+  fn: (...args: ARGS) => RET,
+  ...args: ARGS
+) => {
+  enableTracking();
+  const ret = fn(...args);
+  resetTracking();
+  return ret as RET;
+};
+
 export const untrack = <Value = unknown>(refObj: Ref<Value> | Value) =>
   skip(() => unref(refObj));
 
@@ -266,9 +300,10 @@ type UseRefRet<T> = [
   Ref<T>
 ];
 
-export function useRef<T>(refObj: UnwrapRef<T>): UseRefRet<T>;
-export function useRef<T>(refObj: Ref<T>): UseRefRet<T>;
-export function useRef<T>(targetRaw: T): UseRefRet<T> {
+export function useRef<T extends object>(refObj: T): UseRefRet<UnwrapRef<T>>;
+export function useRef<T>(value: T): UseRefRet<UnwrapRef<T>>;
+export function useRef<T = any>(): UseRefRet<T | undefined>;
+export function useRef<T>(targetRaw?: T): UseRefRet<T> {
   const target = isRef(targetRaw) ? targetRaw : (ref(targetRaw) as Ref<T>);
   const getter = () => unref(target);
   const setter = (valueOrUpdateFn: T | ((value: T) => T)) => {

@@ -76,7 +76,7 @@ export const ReactiveList = <T>({
     const items = typeof getItems === 'function' ? getItems() : unref(getItems);
     ElementSource.source_stack.push(es);
     try {
-      childrenRender(items, () => runner.effect.run());
+      childrenRender(items, () => runner?.effect.run());
     } finally {
       ElementSource.source_stack.pop();
     }
