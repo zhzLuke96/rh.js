@@ -10,22 +10,28 @@ function processSelector(
   parentSelector: string,
   scopedSelector = ''
 ) {
-  const parent = parentSelector === ':root' ? '' : parentSelector;
+  const isRoot = parentSelector === ':root';
+  const parent = isRoot ? '' : parentSelector;
   const combine = (arr1: string[], arr2: string[]) =>
     arr1.flatMap((x) => arr2.map((y) => [x, y]));
-  const blocks = selector
+  const childBlocks = selector
     .split(',')
     .map((x) => x.trim())
     .filter(Boolean);
-  const parentBlocks = parent
-    .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean);
-  const allBlocks = combine(blocks, parentBlocks);
+  let parentBlocks = isRoot
+    ? ['']
+    : parent
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+
+  const allBlocks = combine(childBlocks, parentBlocks);
+
   const replaceAmpersand = ([child, parent]: string[]) =>
     child.startsWith('&') ? child.replace(/&/g, parent) : `${parent} ${child}`;
   const addScope = (block: string) =>
     `${block.replace(scopedSelector || '', '')}${scopedSelector || ''}`.trim();
+
   return allBlocks.map(replaceAmpersand).map(addScope).join(',');
 }
 
@@ -34,7 +40,7 @@ export function parseCSSProps(
   rootNodeSelector: string,
   { beautify = false, scopedSelector = '' }: ParseCSSPropsOptions
 ) {
-  const enter_symbol = beautify ? '\n' : ' ';
+  const enter_symbol = beautify ? '\n' : '';
   const stack = [
     { nodeSelector: rootNodeSelector + scopedSelector, cssObject },
   ];
