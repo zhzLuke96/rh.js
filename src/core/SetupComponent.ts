@@ -7,7 +7,7 @@ import { AnyRecord, SetupComponentDefine } from './types';
 export class SetupComponent<
   Props extends AnyRecord,
   ChildrenList extends any[],
-  State extends any
+  State extends AnyRecord
 > extends ReactiveElement {
   get [symbols.IS_COMPONENT]() {
     return true;
@@ -52,6 +52,6 @@ export class SetupComponent<
   }
 
   protected installSource(): void {
-    (<any>this._define)[symbols.CS_HOOK_CB]?.(this.source);
+    (<any>this._define)[symbols.ES_CREATE_CB]?.(this.source);
   }
 }

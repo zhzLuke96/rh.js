@@ -1,5 +1,5 @@
 import { computed, unref } from '@vue/reactivity';
-import { onUnmount } from '../core/reactiveHydrate';
+import { onUnmount } from '../core/hooks';
 
 const unrefFn = (val: any) => unref(typeof val === 'function' ? val() : val);
 /**

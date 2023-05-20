@@ -1,14 +1,8 @@
 import { shallowRef, toRaw, Ref, unref } from '@vue/reactivity';
 import { Fragment } from './Fragment';
 import * as equal from 'fast-deep-equal';
-import {
-  untrack,
-  rh,
-  useElementSource,
-  setupEffect,
-  skip,
-  setupWatch,
-} from '../core/reactiveHydrate';
+import { untrack, useElementSource, setupEffect, skip } from '../core/hooks';
+import { rh } from '../core/reactiveHydrate';
 import { ElementSource } from '../core/ElementSource';
 import { clonePlainDeep } from '../common/clonePlainDeep';
 

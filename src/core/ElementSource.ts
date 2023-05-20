@@ -1,7 +1,9 @@
 import { effect, ReactiveEffectOptions, stop } from '@vue/reactivity';
-import EventEmitter from 'eventemitter3';
+import EventEmitter from '../common/EventEmitter';
+// import EventEmitter from 'eventemitter3';
 import { symbols } from '../constants';
 import { Stack } from '../common/Stack';
+import { globalIdleScheduler } from '../common/IdleScheduler';
 
 export type ElementSourceEventTypes = {
   mount: () => any; // once
@@ -50,6 +52,13 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     this.once('mount', () => (this.states.mounted = true));
     this.once('unmount', () => (this.states.unmounted = true));
 
+    // poor man's time slice cleanup
+    const emitIdleDispose = () =>
+      globalIdleScheduler.runTask(async () => {
+        await this.idleEmit('unmount');
+        this.dispose();
+      });
+
     if (lazy_unmount) {
       // - If the current source host is a component that supports lazy unmounting:
       //   - It needs to establish a link to the top-level container source.
@@ -63,15 +72,9 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
         this.__container_source === this
           ? this.__container_source.__parent_source?.__container_source
           : this.__container_source;
-      (lazy_container || this.__parent_source).once('unmount', () => {
-        this.emit('unmount');
-        this.dispose();
-      });
+      (lazy_container || this.__parent_source).once('unmount', emitIdleDispose);
     } else {
-      this.__parent_source.once('unmount', () => {
-        this.emit('unmount');
-        this.dispose();
-      });
+      this.__parent_source.once('unmount', emitIdleDispose);
       // `update_after` event of the second from parent is equal to sub-component `unmount`
       this.__parent_source.once('update_after', () => {
         this.__parent_source!.once('update_after', () => {
@@ -114,7 +117,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
 
   dispose() {
     this.removeAllListeners();
-    this.__context = {};
+    delete (<any>this).__context;
   }
 
   effect<T>(fn: () => T, options?: ReactiveEffectOptions) {

@@ -9,6 +9,7 @@ import { symbols } from '../constants';
 import { onDomMutation } from '../common/onDomMutation';
 import { ElementSource } from './ElementSource';
 import { ElementViewRender } from './types';
+import { cheapRemoveElem } from '../common/cheapRemoveElem';
 
 const createAnchor = () => {
   const viewAnchor = document.createTextNode('');
@@ -104,7 +105,7 @@ export class ReactiveElement implements IReactiveElement {
       this.source.__parent_source?.states.unmounted ||
       this.source.__container_source?.states.unmounted
     ) {
-      this.dispose();
+      this.source.emit('unmount');
       return;
     }
 
@@ -128,8 +129,8 @@ export class ReactiveElement implements IReactiveElement {
 
   dispose(): void {
     this.renderEffectRunner?.effect.stop();
-    this.currentView.parentElement?.removeChild(this.currentView);
-    this.viewAnchor.parentElement?.removeChild(this.viewAnchor);
+    cheapRemoveElem(this.currentView);
+    cheapRemoveElem(this.viewAnchor);
     this.dispose_onDomInserted?.();
   }
 

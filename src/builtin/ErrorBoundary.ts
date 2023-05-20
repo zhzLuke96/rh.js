@@ -1,6 +1,6 @@
 import { ref } from '@vue/reactivity';
 import { component } from '../core/component';
-import { skip } from '../core/reactiveHydrate';
+import { skip } from '../core/hooks';
 import { ElementView } from '../core/types';
 import { ElementSource } from '../core/ElementSource';
 

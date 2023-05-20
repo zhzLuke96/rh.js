@@ -1,11 +1,12 @@
 import { symbols } from '../constants';
 import { SetupComponent } from './SetupComponent';
-import { FunctionComponentDefine } from './types';
+import { AnyRecord, FunctionComponentDefine } from './types';
 
 export class FunctionComponent<
-  Props extends Record<keyof any, any>,
-  ChildrenList extends any[] = any[]
-> extends SetupComponent<Props, ChildrenList, unknown> {
+  Props extends AnyRecord = AnyRecord,
+  ChildrenList extends any[] = any[],
+  State extends AnyRecord = AnyRecord
+> extends SetupComponent<Props, ChildrenList, State> {
   constructor(
     protected _function_define: FunctionComponentDefine<Props, ChildrenList>,
     props: Props,
@@ -19,8 +20,8 @@ export class FunctionComponent<
       },
       render: () => void 0,
     };
-    (<any>_define)[symbols.CS_HOOK_CB] = (<any>_function_define)[
-      symbols.CS_HOOK_CB
+    (<any>_define)[symbols.ES_CREATE_CB] = (<any>_function_define)[
+      symbols.ES_CREATE_CB
     ];
 
     super(_define, props, children);

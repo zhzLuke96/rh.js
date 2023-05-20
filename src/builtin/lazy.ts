@@ -1,6 +1,7 @@
 import { ref } from '@vue/reactivity';
 import { ComponentDefine } from '../core/types';
-import { rh, untrack, useElementSource } from '../core/reactiveHydrate';
+import { rh } from '../core/reactiveHydrate';
+import { untrack, useElementSource } from '../core/hooks';
 
 type ModuleLike<T> = { default: T };
 export const lazy = <Component extends ComponentDefine>(

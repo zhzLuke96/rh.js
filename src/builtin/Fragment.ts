@@ -1,12 +1,9 @@
-import {
-  onUnmount,
-  setupEffect,
-  useElementSource,
-} from '../core/reactiveHydrate';
+import { onUnmount, setupEffect, useElementSource } from '../core/hooks';
 import { onDomMutation } from '../common/onDomMutation';
 import { ReactiveElement } from '../core/ReactiveElement';
 import { component } from '../core/component';
 import { ElementSource } from '../core/ElementSource';
+import { cheapRemoveElem } from '../common/cheapRemoveElem';
 
 const arrayify = (obj: any) => (Array.isArray(obj) ? obj : [obj]);
 
@@ -52,6 +49,9 @@ export const Fragment = component({
         const oldOne = oldChildren[idx];
 
         if (!newOne && oldOne) {
+          // If you use cheapRemoveElem here, you may make an error during initialization
+          // (Not now, because this branch will not be entered during initialization, but it is possible)
+          // cheapRemoveElem(oldOne);
           oldOne.remove();
         } else if (!oldOne && newOne) {
           parentNode.insertBefore(newOne, anchor);
@@ -82,7 +82,7 @@ export const Fragment = component({
     const disposeEvent2 = onDomMutation(
       component_context.anchor,
       (parent) => {
-        component_context.children.forEach((view) => view?.remove());
+        component_context.children.forEach(cheapRemoveElem);
         component_context.parentNode = null;
       },
       'DOMNodeRemoved'
@@ -91,16 +91,16 @@ export const Fragment = component({
       disposeEvent1();
       disposeEvent2();
       stopEffect();
-      component_context.anchor.remove();
-      component_context.children.forEach((view) => view?.remove());
+      cheapRemoveElem(component_context.anchor);
+      component_context.children.forEach(cheapRemoveElem);
     };
     onUnmount(unmountEffect);
 
     useElementSource((es) => {
       es.__parent_source?.once('update_before', () => {
-        component_context.children.forEach((view) => view?.remove());
+        component_context.children.forEach(cheapRemoveElem);
         es.__parent_source?.once('update_after', () => {
-          component_context.anchor.remove();
+          cheapRemoveElem(component_context.anchor);
         });
       });
     });

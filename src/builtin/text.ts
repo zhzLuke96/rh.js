@@ -1,5 +1,5 @@
 import { isRef, Ref } from '@vue/reactivity';
-import { setupEffect } from '../core/reactiveHydrate';
+import { setupEffect } from '../core/hooks';
 
 /**
  * reactivity text node

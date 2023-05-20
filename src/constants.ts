@@ -1,8 +1,8 @@
 export const symbols = {
-  CS_HOOK_CB: Symbol('HOOK_CB'),
+  ES_CREATE_CB: Symbol('ES_CREATE_CB'),
   IS_ANCHOR: Symbol('IS_ANCHOR'),
   NONE: Symbol('NONE'),
-  SELF_CS: Symbol('SELF_CS'),
+  SELF_ES: Symbol('SELF_ES'),
   CACHE_NODES: Symbol('CACHE_NODES'),
   IS_COMPONENT: Symbol('IS_COMPONENT'),
   STYLESHEET_SCOPED: Symbol('STYLESHEET_SCOPED'),

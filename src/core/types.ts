@@ -13,9 +13,10 @@ export type ElementViewRender = () => ElementView;
 
 export interface FunctionComponentDefine<
   Props extends AnyRecord = AnyRecord,
-  ChildrenList extends any[] = any[]
+  ChildrenList extends any[] = any[],
+  State extends AnyRecord = AnyRecord
 > {
-  (props: Props, state: any, children: ChildrenList): ElementViewRender;
+  (props: Props, state: State, children: ChildrenList): ElementViewRender;
 }
 export type FC<
   Props extends AnyRecord = AnyRecord,
@@ -25,7 +26,7 @@ export type FC<
 export interface SetupComponentDefine<
   Props extends AnyRecord = AnyRecord,
   ChildrenList extends any[] = any[],
-  State extends any = any
+  State extends AnyRecord = AnyRecord
 > {
   setup(props: Props, children: ChildrenList): State;
   render(props: Props, state: State, children: ChildrenList): ElementView;
@@ -34,7 +35,7 @@ export interface SetupComponentDefine<
 export type ComponentDefine<
   Props extends AnyRecord = AnyRecord,
   ChildrenList extends any[] = any[],
-  State = any
+  State extends AnyRecord = AnyRecord
 > =
-  | FunctionComponentDefine<Props, ChildrenList>
+  | FunctionComponentDefine<Props, ChildrenList, State>
   | SetupComponentDefine<Props, ChildrenList, State>;

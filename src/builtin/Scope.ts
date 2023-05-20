@@ -1,7 +1,8 @@
 import { symbols } from '../constants';
 import { useContainerContextProxy } from '../core/context';
 import { ReactiveElement } from '../core/ReactiveElement';
-import { rh, useElementSource } from '../core/reactiveHydrate';
+import { rh } from '../core/reactiveHydrate';
+import { useElementSource } from '../core/hooks';
 import { ElementView, FunctionComponentDefine } from '../core/types';
 
 type ScopeProps = {

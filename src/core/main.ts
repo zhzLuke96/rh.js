@@ -1,8 +1,6 @@
 export * from '@vue/reactivity';
+export { createComponent, reactiveHydrate, rh } from './reactiveHydrate';
 export {
-  createComponent,
-  reactiveHydrate,
-  rh,
   mount,
   unmount,
   setupEffect,
@@ -22,7 +20,7 @@ export {
   onThrow,
   onUnmount,
   onUpdate,
-} from './reactiveHydrate';
+} from './hooks';
 
 export * from './component';
 export * from './context';

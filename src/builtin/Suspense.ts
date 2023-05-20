@@ -1,6 +1,7 @@
-import { ref, shallowRef } from '@vue/reactivity';
+import { ref } from '@vue/reactivity';
 import { ComponentDefine, ElementView } from '../core/types';
-import { onThrow, rh, setupWatch } from '../core/reactiveHydrate';
+import { rh } from '../core/reactiveHydrate';
+import { onThrow } from '../core/hooks';
 import { ReactiveElement } from '../core/ReactiveElement';
 
 type PromiseState = 'pending' | 'fulfilled' | 'rejected';

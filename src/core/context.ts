@@ -1,5 +1,5 @@
 import { ElementSource } from './ElementSource';
-import { useElementSource } from './reactiveHydrate';
+import { useElementSource } from './hooks';
 
 const createContextProxy = (es: ElementSource) =>
   new Proxy({} as Record<keyof any, any>, {

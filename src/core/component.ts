@@ -1,16 +1,21 @@
 import { symbols } from '../constants';
 import { ElementSource } from './ElementSource';
-import { AnyRecord, ComponentDefine } from './types';
+import {
+  AnyRecord,
+  ComponentDefine,
+  FunctionComponentDefine,
+  SetupComponentDefine,
+} from './types';
 
-const appendSourceCallback = (
+const appendCreateCallback = (
   component: ComponentDefine<any, any, any>,
   fn?: (es: ElementSource) => any
 ) => {
   if (!fn) {
     return;
   }
-  const old_cb = (<any>component)[symbols.CS_HOOK_CB];
-  (<any>component)[symbols.CS_HOOK_CB] = (es: ElementSource) => {
+  const old_cb = (<any>component)[symbols.ES_CREATE_CB];
+  (<any>component)[symbols.ES_CREATE_CB] = (es: ElementSource) => {
     old_cb?.(es);
     fn(es);
   };
@@ -55,18 +60,35 @@ export function inject(key: keyof any, value: any) {
 }
 
 /**
- * component
- *
- * a syntactic sugar
+ * A function that helps to infer the type of a component and optionally injects a callback function into the component's source when it is created.
+ * @param define - the component definition object or function
+ * @param onCreateCallback - an optional callback function that receives the component's source as an argument when the component is created
+ * @returns the same component definition object or function as the input
  */
-export const component = <
+export function component<
   Props extends AnyRecord = AnyRecord,
   ChildrenList extends any[] = any[],
-  State = any
+  State extends AnyRecord = AnyRecord
+>(
+  define: FunctionComponentDefine<Props, ChildrenList, State>,
+  onCreateCallback?: (es: ElementSource) => any
+): FunctionComponentDefine<Props, ChildrenList, State>;
+export function component<
+  Props extends AnyRecord = AnyRecord,
+  ChildrenList extends any[] = any[],
+  State extends AnyRecord = AnyRecord
+>(
+  define: SetupComponentDefine<Props, ChildrenList, State>,
+  onCreateCallback?: (es: ElementSource) => any
+): SetupComponentDefine<Props, ChildrenList, State>;
+export function component<
+  Props extends AnyRecord = AnyRecord,
+  ChildrenList extends any[] = any[],
+  State extends AnyRecord = AnyRecord
 >(
   define: ComponentDefine<Props, ChildrenList, State>,
-  sourceCallback?: (es: ElementSource) => any
-) => {
-  appendSourceCallback(define, sourceCallback);
+  onCreateCallback?: (es: ElementSource) => any
+): ComponentDefine<Props, ChildrenList, State> {
+  appendCreateCallback(define, onCreateCallback);
   return define;
-};
+}

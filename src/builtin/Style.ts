@@ -1,6 +1,6 @@
 import { onDomMutation } from '../common/onDomMutation';
 import { AnyRecord, FC } from '../core/types';
-import { onUnmount, setupEffect } from '../core/reactiveHydrate';
+import { onUnmount, setupEffect } from '../core/hooks';
 import {
   createStyleSheet,
   NestedCSSProperties,

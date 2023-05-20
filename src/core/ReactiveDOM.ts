@@ -1,4 +1,5 @@
 import { isRef, pauseTracking, resetTracking, unref } from '@vue/reactivity';
+import { cheapRemoveElem } from '../common/cheapRemoveElem';
 import { ElementSource } from './ElementSource';
 import { ReactiveElement } from './ReactiveElement';
 
@@ -18,7 +19,7 @@ export class ReactiveDOM {
   }
 
   dispose() {
-    this.node?.parentElement?.removeChild(this.node);
+    cheapRemoveElem(this.node);
   }
 
   private buildNode() {
