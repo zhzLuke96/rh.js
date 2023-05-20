@@ -73,12 +73,12 @@ export class EventEmitter<
 
   /**
    * Call each of the listeners registered for a given event
-   * @param eventName The event name
-   * @param args The list of arguments passed to listeners
-   * @returns `true` of the event had listeners, else `false`
+   *
+   * run whit idle scheduler
    */
   idleEmit<EventName extends keyof EventTypes>(
     eventName: EventName,
+    callback?: () => any,
     ...args: Parameters<EventTypes[EventName]>
   ): boolean {
     let eventObjects = this.#getEventObjects(eventName);
@@ -88,6 +88,7 @@ export class EventEmitter<
         if (once)
           this.#removeEventObjects(eventName, listener, undefined, true);
         listener.apply(context, args);
+        callback?.();
       });
     });
     return true;

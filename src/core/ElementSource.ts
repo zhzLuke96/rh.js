@@ -55,8 +55,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     // poor man's time slice cleanup
     const emitIdleDispose = () =>
       globalIdleScheduler.runTask(async () => {
-        await this.idleEmit('unmount');
-        this.dispose();
+        this.idleEmit('unmount', () => this.dispose());
       });
 
     if (lazy_unmount) {

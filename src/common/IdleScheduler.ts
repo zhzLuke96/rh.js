@@ -1,10 +1,12 @@
+import { Queue } from './Queue';
+
 export class IdleScheduler {
-  tasks = [] as (() => any)[];
+  tasks = new Queue<() => any>();
   isRunning = false;
   threshold = 10;
 
   runTask(callback: () => any) {
-    this.tasks.push(callback);
+    this.tasks.enqueue(callback);
     this.triggerSchedule();
   }
 
@@ -13,23 +15,28 @@ export class IdleScheduler {
     if (this.isRunning) return;
 
     this.isRunning = true;
-    requestIdleCallback((deadline) => {
-      try {
-        while (this.tasks.length > 0) {
-          const callback = this.tasks.shift();
-          if (!callback) {
-            break;
+    requestIdleCallback(
+      (deadline) => {
+        try {
+          while (this.tasks.length > 0) {
+            const callback = this.tasks.dequeue();
+            if (!callback) {
+              break;
+            }
+            callback();
+            if (deadline.timeRemaining() <= this.threshold) {
+              break;
+            }
           }
-          callback();
-          if (deadline.timeRemaining() <= this.threshold) {
-            break;
-          }
+        } finally {
+          this.isRunning = false;
         }
-      } finally {
-        this.isRunning = false;
+        requestAnimationFrame(() => this.triggerSchedule());
+      },
+      {
+        timeout: 1000,
       }
-      requestAnimationFrame(() => this.triggerSchedule());
-    });
+    );
   }
 }
 
