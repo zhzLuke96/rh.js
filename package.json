@@ -1,7 +1,7 @@
 {
   "name": "@rhjs/rh",
   "description": "a lightweight / reactivity web framework",
-  "version": "0.1.1-dev.20",
+  "version": "0.1.1-dev.21",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
   "module": "dist/main.module.mjs",
