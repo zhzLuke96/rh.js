@@ -6,4 +6,5 @@ export const symbols = {
   CACHE_NODES: Symbol('CACHE_NODES'),
   IS_COMPONENT: Symbol('IS_COMPONENT'),
   STYLESHEET_SCOPED: Symbol('STYLESHEET_SCOPED'),
+  STYLESHEET_ROOT: Symbol('STYLESHEET_ROOT'),
 };

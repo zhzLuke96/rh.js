@@ -4,6 +4,7 @@ export * from './ReactiveList';
 export * from './Portal';
 export * from './Style';
 export * from './Suspense';
+export * from './Scope';
 
 // tools
 export * from './text';

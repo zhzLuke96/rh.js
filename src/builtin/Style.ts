@@ -21,15 +21,25 @@ function convertToCamelCase(str: string) {
 }
 
 type StyleFn = (contextProxy: AnyRecord) => NestedCSSProperties;
+type StyleComponentProps = {
+  style?: NestedCSSProperties;
+  styleFn?: StyleFn;
+  scoped?: boolean;
+  adopted?: boolean;
+  [k: string]: any;
+};
 type StyleComponent = FC<
-  {
-    style?: NestedCSSProperties;
-    styleFn?: StyleFn;
-    scoped?: boolean;
-    [k: string]: any;
-  },
+  StyleComponentProps,
   [StyleFn | NestedCSSProperties | void]
 >;
+
+type ConnectStyleSheetOptions = {
+  props: StyleComponentProps;
+  styleOrFunc?: StyleFn | NestedCSSProperties | void;
+  rootNodeSelector: string;
+  className?: string;
+  scopedId?: string;
+};
 
 const zipStyleFn = (
   styleOrFn?: StyleFn | NestedCSSProperties | null | void
@@ -43,24 +53,60 @@ const zipStyleFn = (
   return () => styleOrFn;
 };
 
-const connectStyleSheet = (
-  styleFn: StyleFn,
-  rootNodeSelector: string,
-  className?: string,
-  scopedId?: string
+const isDocumentOrShadowRoot = (
+  node: Node
+): node is DocumentOrShadowRoot & Node =>
+  node.nodeType === Node.DOCUMENT_NODE ||
+  node.nodeType === Node.DOCUMENT_FRAGMENT_NODE;
+
+const useStyleSheet = (
+  { props, scopedId, rootNodeSelector, styleOrFunc }: ConnectStyleSheetOptions,
+  anchor: Node
 ) => {
-  const scoped = !!scopedId;
+  const styleFn = zipStyleFn(props.styleFn || props.style || styleOrFunc);
   const context = useContainerContextProxy();
   const { applySheet, removeSheet, parseStyle } = createStyleSheet(
     () => styleFn(context),
-    scopedId ? `[data-s-${scopedId}]` : undefined
+    scopedId ? `[data-s-${scopedId}]` : undefined,
+    props.adopted
   );
+
+  const { [symbols.STYLESHEET_ROOT]: rootNode } = context;
+  setupEffect(() => {
+    let realRootNodeSelector = rootNodeSelector;
+    if (
+      props.adopted &&
+      rootNode &&
+      rootNode instanceof Node &&
+      isDocumentOrShadowRoot(rootNode)
+    ) {
+      realRootNodeSelector = ':root';
+    }
+    parseStyle(realRootNodeSelector);
+  });
+
+  if (props.adopted) {
+    applySheet(rootNode);
+    onUnmount(() => removeSheet(rootNode));
+  } else {
+    if (rootNode?.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+      // in shadow root
+      applySheet(rootNode);
+      onUnmount(() => removeSheet(rootNode));
+    } else {
+      onUnmount(onDomMutation(anchor, applySheet, 'DOMNodeInserted'));
+      onUnmount(onDomMutation(anchor, removeSheet, 'DOMNodeRemoved'));
+    }
+  }
+};
+
+const connectStyleSheet = (options: ConnectStyleSheetOptions) => {
+  const { scopedId, className } = options;
+
+  const scoped = !!scopedId;
   const anchor = document.createTextNode('');
 
-  setupEffect(() => parseStyle(rootNodeSelector));
-  onUnmount(onDomMutation(anchor, applySheet, 'DOMNodeInserted'));
-  onUnmount(onDomMutation(anchor, removeSheet, 'DOMNodeRemoved'));
-  onUnmount(removeSheet);
+  useStyleSheet(options, anchor);
 
   let observer: MutationObserver | undefined;
   const datasetKey = convertToCamelCase(`s-${scopedId}`);
@@ -127,17 +173,16 @@ const connectStyleSheet = (
 /**
  * Adaptive nested css style definition components
  */
-export const Style: StyleComponent = (props, styleOrFunc) => {
-  const _styleFn = zipStyleFn(props.styleFn || props.style || styleOrFunc);
-
+export const Style: StyleComponent = (props, state, [styleOrFunc]) => {
   const scopedId = props.scoped ? randomKey() : undefined;
   const className = `s-${randomKey()}`;
-  const { anchor } = connectStyleSheet(
-    _styleFn,
-    `.${className}`,
+  const { anchor } = connectStyleSheet({
+    props,
+    styleOrFunc,
+    rootNodeSelector: `.${className}`,
     className,
-    scopedId
-  );
+    scopedId,
+  });
 
   return () => anchor;
 };
@@ -145,8 +190,11 @@ export const Style: StyleComponent = (props, styleOrFunc) => {
 /**
  * style for global (inject to html top element)
  */
-export const GlobalStyle: StyleComponent = (props, styleOrFunc) => {
-  const _styleFn = zipStyleFn(props.styleFn || props.style || styleOrFunc);
-  const { anchor } = connectStyleSheet(_styleFn, ':root');
+export const GlobalStyle: StyleComponent = (props, state, [styleOrFunc]) => {
+  const { anchor } = connectStyleSheet({
+    props: { ...props, scoped: false },
+    styleOrFunc,
+    rootNodeSelector: ':root',
+  });
   return () => anchor;
 };

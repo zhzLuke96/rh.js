@@ -333,3 +333,21 @@ export const unrefAll = depend;
 
 export const untrackAll = <Args extends any[]>(...args: Args) =>
   args.map((x) => untrack(x)) as UnRefArray<Args>;
+
+export const useDisposer = () => {
+  let unmounted = false;
+  let callbacks = [] as any[];
+  onUnmount(() => {
+    unmounted = true;
+    callbacks.forEach((cb) => cb());
+    callbacks = [];
+  });
+  function disposeCallback(fn: (...args: any[]) => any) {
+    if (unmounted) {
+      fn();
+      return;
+    }
+    callbacks.push(fn);
+  }
+  return disposeCallback;
+};
