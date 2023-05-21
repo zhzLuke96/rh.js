@@ -1,42 +1,75 @@
 import { Queue } from './Queue';
 
+type IdleTaskFunction = (deadline: { timeRemaining: () => number }) => any;
 export class IdleScheduler {
-  tasks = new Queue<() => any>();
-  isRunning = false;
-  threshold = 10;
+  private frameDeadline: number;
+  private taskQueue: Queue<IdleTaskFunction>;
+  private channel: MessageChannel;
+  private messagePort: MessagePort;
+  private triggerPort: MessagePort;
+  private rafTriggered: boolean;
+  private activeFrameTime = 33.33;
 
-  runTask(callback: () => any) {
-    this.tasks.enqueue(callback);
-    this.triggerSchedule();
+  constructor() {
+    this.frameDeadline = performance.now() + this.activeFrameTime;
+    this.taskQueue = new Queue<() => any>();
+    this.channel = new MessageChannel();
+    this.messagePort = this.channel.port1;
+    this.triggerPort = this.channel.port2;
+    this.rafTriggered = false;
+
+    this.messagePort.onmessage = () => {
+      this.handleTask();
+    };
   }
 
-  triggerSchedule() {
-    if (this.tasks.length === 0) return;
-    if (this.isRunning) return;
+  private timeRemaining() {
+    return Math.max(0, this.frameDeadline - performance.now());
+  }
 
-    this.isRunning = true;
-    requestIdleCallback(
-      (deadline) => {
-        try {
-          while (this.tasks.length > 0) {
-            const callback = this.tasks.dequeue();
-            if (!callback) {
-              break;
-            }
-            callback();
-            if (deadline.timeRemaining() <= this.threshold) {
-              break;
-            }
-          }
-        } finally {
-          this.isRunning = false;
-        }
-        requestAnimationFrame(() => this.triggerSchedule());
-      },
-      {
-        timeout: 1000,
+  private execTask(task: IdleTaskFunction) {
+    const deadline = {
+      timeRemaining: (): number => this.timeRemaining(),
+    };
+    task(deadline);
+  }
+
+  private handleTask(): void {
+    let task = this.taskQueue.dequeue();
+    while (task) {
+      this.execTask(task);
+      if (this.timeRemaining() <= 0) {
+        this.trigger();
+        break;
       }
-    );
+      task = this.taskQueue.dequeue();
+    }
+  }
+
+  private trigger() {
+    if (this.rafTriggered) {
+      return;
+    }
+    if (this.taskQueue.length === 0) {
+      return;
+    }
+    this.rafTriggered = true;
+    requestAnimationFrame((rafTime) => {
+      this.frameDeadline = rafTime + this.activeFrameTime;
+      this.rafTriggered = false;
+      if (rafTime < this.frameDeadline) {
+        this.triggerPort.postMessage(null);
+      }
+    });
+  }
+
+  public runTask(task: IdleTaskFunction): void {
+    if (!this.rafTriggered && performance.now() < this.frameDeadline) {
+      this.execTask(task);
+      return;
+    }
+    this.taskQueue.enqueue(task);
+    this.trigger();
   }
 }
 

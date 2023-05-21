@@ -46,6 +46,7 @@ export class ReactiveElement implements IReactiveElement {
     }
     this._initialized = true;
     this.initialize();
+    (<any>this.viewAnchor)[symbols.DISPOSE] = () => this.source.emit('unmount');
   }
   protected initialize() {
     this.source ||= new ElementSource(this);
@@ -95,6 +96,9 @@ export class ReactiveElement implements IReactiveElement {
       parentElement.replaceChild(currentView, oldView);
     }
     this.currentView = currentView;
+
+    (<any>this.currentView)[symbols.DISPOSE] = () =>
+      this.source.emit('unmount');
   }
 
   update(): void {
@@ -131,6 +135,8 @@ export class ReactiveElement implements IReactiveElement {
     this.renderEffectRunner?.effect.stop();
     cheapRemoveElem(this.currentView);
     cheapRemoveElem(this.viewAnchor);
+    (<any>this.currentView)[symbols.DISPOSE] = undefined;
+    (<any>this.viewAnchor)[symbols.DISPOSE] = undefined;
     this.dispose_onDomInserted?.();
   }
 

@@ -7,4 +7,5 @@ export const symbols = {
   IS_COMPONENT: Symbol('IS_COMPONENT'),
   STYLESHEET_SCOPED: Symbol('STYLESHEET_SCOPED'),
   STYLESHEET_ROOT: Symbol('STYLESHEET_ROOT'),
+  DISPOSE: Symbol('DISPOSE'),
 };

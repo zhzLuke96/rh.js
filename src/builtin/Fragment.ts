@@ -4,6 +4,7 @@ import { ReactiveElement } from '../core/ReactiveElement';
 import { component } from '../core/component';
 import { ElementSource } from '../core/ElementSource';
 import { cheapRemoveElem } from '../common/cheapRemoveElem';
+import { symbols } from '../constants';
 
 const arrayify = (obj: any) => (Array.isArray(obj) ? obj : [obj]);
 
@@ -34,6 +35,11 @@ export const Fragment = component({
         : () => [childrenOrChildrenRender, ...children]
     );
 
+    const disposeNode = (node: Node) => {
+      const dispose = (<any>node)[symbols.DISPOSE];
+      dispose?.();
+    };
+
     const childrenRender = () => {
       const oldChildren = component_context.children;
       const newChildren = childrenRenderFunc();
@@ -48,18 +54,21 @@ export const Fragment = component({
         const newOne = newChildren[idx];
         const oldOne = oldChildren[idx];
 
+        if (oldOne === newOne) {
+          continue;
+        }
+
         if (!newOne && oldOne) {
           // If you use cheapRemoveElem here, you may make an error during initialization
           // (Not now, because this branch will not be entered during initialization, but it is possible)
           // cheapRemoveElem(oldOne);
           oldOne.remove();
+          disposeNode(oldOne);
         } else if (!oldOne && newOne) {
           parentNode.insertBefore(newOne, anchor);
         } else if (oldOne && newOne) {
-          if (oldOne === newOne) {
-            continue;
-          }
           parentNode.replaceChild(newOne, oldOne);
+          disposeNode(oldOne);
         }
       }
       component_context.children = newChildren as any[];

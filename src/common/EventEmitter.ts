@@ -1,4 +1,4 @@
-import { globalIdleScheduler, IdleScheduler } from './IdleScheduler';
+import { globalIdleScheduler } from './IdleScheduler';
 
 type UnknownArgs = ReadonlyArray<unknown>;
 
@@ -29,8 +29,6 @@ export class EventEmitter<
   EventTypes extends BaseEventTypes = BaseEventTypes,
   Context = unknown
 > {
-  private scheduler = new IdleScheduler();
-
   readonly #eventMap = new Map<
     keyof EventTypes,
     EventObject<Context, AnyFunc>[]
@@ -78,7 +76,6 @@ export class EventEmitter<
    */
   idleEmit<EventName extends keyof EventTypes>(
     eventName: EventName,
-    callback?: () => any,
     ...args: Parameters<EventTypes[EventName]>
   ): boolean {
     let eventObjects = this.#getEventObjects(eventName);
@@ -88,7 +85,6 @@ export class EventEmitter<
         if (once)
           this.#removeEventObjects(eventName, listener, undefined, true);
         listener.apply(context, args);
-        callback?.();
       });
     });
     return true;

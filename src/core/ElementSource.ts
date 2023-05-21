@@ -35,7 +35,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     unmounted: false,
   };
 
-  constructor(public host?: any, lazy_unmount?: boolean) {
+  constructor(public host?: any, readonly lazy_unmount?: boolean) {
     super();
 
     if (!this.__parent_source) {
@@ -53,10 +53,10 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     this.once('unmount', () => (this.states.unmounted = true));
 
     // poor man's time slice cleanup
-    const emitIdleDispose = () =>
-      globalIdleScheduler.runTask(async () => {
-        this.idleEmit('unmount', () => this.dispose());
-      });
+    const emitIdleDispose = () => {
+      this.idleEmit('unmount');
+      this.dispose();
+    };
 
     if (lazy_unmount) {
       // - If the current source host is a component that supports lazy unmounting:
@@ -121,7 +121,11 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
 
   effect<T>(fn: () => T, options?: ReactiveEffectOptions) {
     const runner = effect(fn, options);
-    this.once('unmount', () => stop(runner));
+    if (!options?.lazy && runner.effect.deps.length === 0) {
+      stop(runner);
+    } else {
+      this.once('unmount', () => stop(runner));
+    }
     return runner;
   }
 }
