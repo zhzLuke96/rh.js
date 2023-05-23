@@ -1450,9 +1450,13 @@ declare namespace JSX {
     | 'treeitem'
     | 'none presentation';
 
+  type DirectivePrefix = `$${string}`;
+
   export interface HTMLAttributes<RefType extends EventTarget = EventTarget>
     extends DOMAttributes<RefType>,
       AriaAttributes {
+    // custom directives
+    [K: DirectivePrefix]: any;
     // JSX attributes
     children?: any;
     // RhJS attributes

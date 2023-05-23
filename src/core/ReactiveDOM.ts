@@ -1,8 +1,11 @@
 import { isRef, pauseTracking, resetTracking, unref } from '@vue/reactivity';
 import { cheapRemoveElem } from '../common/cheapRemoveElem';
+import { globalIdleScheduler } from '../common/IdleScheduler';
+import { onDomMutation } from '../common/onDomMutation';
 import { symbols } from '../constants';
 import { ElementSource } from './ElementSource';
 import { ReactiveElement } from './ReactiveElement';
+import { AnyRecord } from './types';
 
 // tag + props + children => ReactiveDOM
 export class ReactiveDOM {
@@ -20,14 +23,22 @@ export class ReactiveDOM {
       }
     }
     const ins = new ReactiveDOM(tagNameOrDome, props, children);
-    ReactiveDOM.instances.set(ins.node, ins);
+    ReactiveDOM.instances.set(ins.elem, ins);
     return ins;
   }
 
-  node!: Element;
+  // custom directive
+  static directives = new Map<
+    string,
+    (elem: Element, dom: ReactiveDOM) => any
+  >();
+
+  elem!: Element;
   source = new ElementSource(this);
 
   listeners = {} as Record<string, (...args: any[]) => any>;
+
+  dispose_onDomInserted!: () => any;
 
   constructor(
     private tagNameOrDome: string | Element,
@@ -40,36 +51,56 @@ export class ReactiveDOM {
   }
 
   dispose() {
-    cheapRemoveElem(this.node);
-    (<any>this.node)[symbols.DISPOSE] = undefined;
+    cheapRemoveElem(this.elem);
+    (<any>this.elem)[symbols.DISPOSE] = undefined;
+    this.dispose_onDomInserted?.();
   }
 
   private initializeNode() {
-    if (this.node) return this.node;
+    if (this.elem) return this.elem;
 
-    this.node =
+    this.elem =
       this.tagNameOrDome instanceof Element
         ? this.tagNameOrDome
         : document.createElement(this.tagNameOrDome);
 
     this.update(this.props, this.children);
 
-    return this.node;
+    this.dispose_onDomInserted = onDomMutation(
+      this.elem,
+      (parent, dom) => {
+        this.dispose_onDomInserted?.();
+        this.source.emit('mount');
+      },
+      'DOMNodeInserted'
+    );
+
+    return this.elem;
   }
 
-  private update(props: Record<keyof any, any>, children: any[]) {
+  private update(props: AnyRecord, children: any[]) {
     this.props = props;
     this.children = children;
 
-    pauseTracking();
-    this.hydrateChildren();
-    resetTracking();
+    this.source.bindDirectiveFromProps(props);
 
-    for (const [key, value] of Object.entries(this.props)) {
-      this.hydrateAttribute(key, value);
+    this.source.emit('update_before');
+    this.source.emit('update');
+
+    try {
+      pauseTracking();
+      this.hydrateChildren();
+      resetTracking();
+      for (const [key, value] of Object.entries(this.props)) {
+        this.hydrateAttribute(key, value);
+      }
+      (<any>this.elem)[symbols.DISPOSE] = () => this.source.emit('unmount');
+    } catch (error) {
+      this.source.throw(error);
+      console.error(error);
+    } finally {
+      this.source.emit('update_after');
     }
-
-    (<any>this.node)[symbols.DISPOSE] = () => this.source.emit('unmount');
   }
 
   private isValidAttributeName(key: string) {
@@ -89,15 +120,15 @@ export class ReactiveDOM {
     switch (key) {
       case 'ref': {
         if (typeof value === 'function') {
-          value(this.node);
+          value(this.elem);
         } else if (isRef(value)) {
-          value.value = this.node;
+          value.value = this.elem;
         }
         return;
       }
       case 'effect': {
         if (typeof value === 'function') {
-          this.source.effect(() => value(this.node), { lazy: false });
+          this.source.effect(() => value(this.elem), { lazy: false });
         }
         return;
       }
@@ -109,33 +140,33 @@ export class ReactiveDOM {
       const evKey = key.slice(2).toLowerCase();
 
       const old_cb = this.listeners[key];
-      old_cb && this.node.removeEventListener(evKey, old_cb);
+      old_cb && this.elem.removeEventListener(evKey, old_cb);
       this.listeners[key] = value;
 
-      this.node.addEventListener(evKey, value);
+      this.elem.addEventListener(evKey, value);
       return;
     }
     const setAttribute = (val: any) => {
       if (key === 'value') {
-        (<any>this.node).value = val;
+        (<any>this.elem).value = val;
         return;
       }
       if (key === 'defaultValue') {
-        if ((<any>this.node).value) {
+        if ((<any>this.elem).value) {
           return;
         }
-        (<any>this.node).value = val;
+        (<any>this.elem).value = val;
         return;
       }
       if (typeof val === 'boolean') {
         if (val) {
-          this.node.setAttribute(key, '');
+          this.elem.setAttribute(key, '');
         } else {
-          this.node.removeAttribute(key);
+          this.elem.removeAttribute(key);
         }
         return;
       }
-      this.node.setAttribute(key, val);
+      this.elem.setAttribute(key, val);
     };
     if (isRef(value)) {
       this.source.effect(
@@ -153,14 +184,21 @@ export class ReactiveDOM {
   private hydrateChildren() {
     const { children } = this;
 
-    for (const child of children) {
-      if (child === null || child === undefined) {
-        continue;
-      }
-      const warpChild = ReactiveElement.warp(child);
-      if (warpChild) {
-        this.node.appendChild(warpChild);
-      }
-    }
+    // just append
+    children
+      .filter((x) => x !== null && x !== undefined)
+      .map((child) => ReactiveElement.warp(child))
+      .filter(Boolean)
+      .forEach((child) => this.elem.appendChild(child!));
+
+    // by fragment
+    // FIXME: cant fire inserted event...
+    // const fragment = document.createDocumentFragment();
+    // children
+    //   .filter((x) => x !== null && x !== undefined)
+    //   .map((child) => ReactiveElement.warp(child))
+    //   .filter(Boolean)
+    //   .forEach((child) => fragment.appendChild(child!));
+    // this.node.appendChild(fragment);
   }
 }

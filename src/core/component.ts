@@ -31,18 +31,13 @@ export function provide<T = unknown>(
   key: string,
   default_value: T = symbols.NONE as any
 ): T | undefined {
-  let source: ElementSource | undefined = ElementSource.peek();
-  while (source) {
-    const context = source.__context;
-    if (key in context) {
-      return context[key];
-    }
-    source = source.__parent_source;
+  const source: ElementSource | undefined = ElementSource.peek();
+  if (!source) {
+    throw new Error('No element source found');
   }
-  if (default_value === symbols.NONE) {
-    throw new Error(`The key '${key}' is not defined in context`);
-  }
-  return default_value;
+  return source.getContextValue(key, {
+    default_value,
+  });
 }
 
 /**
@@ -56,7 +51,7 @@ export function inject(key: keyof any, value: any) {
   if (!source?.__container_source) {
     throw new Error(`inject must be called inside Component`);
   }
-  source.__container_source.__context[key] = value;
+  source.setContextValue(key, value, { hit_container: true });
 }
 
 /**

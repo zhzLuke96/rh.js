@@ -10,6 +10,7 @@ import { onDomMutation } from '../common/onDomMutation';
 import { ElementSource } from './ElementSource';
 import { ElementViewRender } from './types';
 import { cheapRemoveElem } from '../common/cheapRemoveElem';
+import { globalIdleScheduler } from '../common/IdleScheduler';
 
 const createAnchor = () => {
   const viewAnchor = document.createTextNode('');
@@ -48,6 +49,10 @@ export class ReactiveElement implements IReactiveElement {
     this.initialize();
     (<any>this.viewAnchor)[symbols.DISPOSE] = () => this.source.emit('unmount');
   }
+
+  /**
+   * only called when the element first rendered
+   */
   protected initialize() {
     this.source ||= new ElementSource(this);
     this.source.once('unmount', () => this.dispose());
@@ -119,12 +124,8 @@ export class ReactiveElement implements IReactiveElement {
       this.source.emit('update');
       this._update();
     } catch (error) {
-      requestAnimationFrame(() => {
-        // Throw the error in the next tick and emit an event to indicate the update failure
-        // This avoids merging effects if the component receiving the error is the same as the current component
-        this.source.emit('throw', error);
-        console.error(error);
-      });
+      this.source.throw(error);
+      console.error(error);
     } finally {
       ElementSource.source_stack.pop();
       this.source.emit('update_after');

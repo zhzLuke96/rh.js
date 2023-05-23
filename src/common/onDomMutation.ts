@@ -11,7 +11,10 @@ export const onDomMutation = (
 ) => {
   const handler = (event: any) => {
     const parent = event.relatedNode;
-    if (parent && parent === dom.parentNode) {
+    if (!parent) {
+      return;
+    }
+    if (parent === dom.parentNode) {
       fn(parent, dom);
     }
   };

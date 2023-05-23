@@ -20,6 +20,7 @@ export {
   onThrow,
   onUnmount,
   onUpdate,
+  enableDirective,
 } from './hooks';
 
 export * from './component';

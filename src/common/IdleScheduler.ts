@@ -28,10 +28,9 @@ export class IdleScheduler {
   }
 
   private execTask(task: IdleTaskFunction) {
-    const deadline = {
+    task({
       timeRemaining: (): number => this.timeRemaining(),
-    };
-    task(deadline);
+    });
   }
 
   private handleTask(): void {

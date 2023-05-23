@@ -4,6 +4,7 @@ import EventEmitter from '../common/EventEmitter';
 import { symbols } from '../constants';
 import { Stack } from '../common/Stack';
 import { globalIdleScheduler } from '../common/IdleScheduler';
+import { AnyRecord } from './types';
 
 export type ElementSourceEventTypes = {
   mount: () => any; // once
@@ -15,6 +16,20 @@ export type ElementSourceEventTypes = {
   update_after: (error?: Error) => any; // many
   setup_before: () => any; // once (zero)
   setup_after: () => any; // once
+};
+
+export type DirectiveFunction = (
+  value: any,
+  element: Element | undefined,
+  source: ElementSource,
+  host?: any
+) => any;
+
+export type DirectiveDefine = {
+  key: string;
+  hooks: {
+    [K in keyof ElementSourceEventTypes]?: DirectiveFunction;
+  };
 };
 
 export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
@@ -116,7 +131,8 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
 
   dispose() {
     this.removeAllListeners();
-    delete (<any>this).__context;
+    this.__context = {};
+    this.__directive_callbacks = {};
   }
 
   effect<T>(fn: () => T, options?: ReactiveEffectOptions) {
@@ -128,4 +144,103 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     }
     return runner;
   }
+
+  throw(value: any, options?: { sync?: boolean }) {
+    const handler = () => this.emit('throw', value);
+    if (options?.sync) {
+      handler();
+    } else {
+      // Throw the error in the next tick and emit an event to indicate the update failure
+      // This avoids merging effects if the component receiving the error is the same as the current component
+      globalIdleScheduler.runTask(handler);
+    }
+  }
+
+  getContextValue(
+    key: keyof any,
+    options: {
+      hit_container?: boolean;
+      throw_error?: boolean;
+      default_value?: any;
+    } = {}
+  ) {
+    let source = options?.hit_container ? this.__container_source : this;
+    while (source) {
+      const context = source.__context;
+      if (key in context) {
+        return context[key];
+      }
+      source = source.__parent_source;
+    }
+    if (options?.throw_error) {
+      throw new Error(`Cannot find context for key '${String(key)}'`);
+    }
+    if ('default_value' in options) {
+      this.setContextValue(key, options.default_value, {
+        hit_container: options.hit_container,
+      });
+      return options.default_value;
+    }
+    return undefined;
+  }
+
+  setContextValue(
+    key: keyof any,
+    value: any,
+    options?: { hit_container?: boolean }
+  ) {
+    const source = options?.hit_container ? this.__container_source : this;
+    if (!source) {
+      throw new Error(`Cannot find context`);
+    }
+    source.__context[key] = value;
+  }
+
+  matchDirective(directive: string) {
+    let source = this as ElementSource | undefined;
+    while (source) {
+      const context = source.__context;
+      if (
+        symbols.DIRECTIVES in context &&
+        context[symbols.DIRECTIVES] &&
+        typeof context[symbols.DIRECTIVES] === 'object' &&
+        context[symbols.DIRECTIVES][directive]
+      ) {
+        return context[symbols.DIRECTIVES][directive] as DirectiveDefine;
+      }
+      source = source.__parent_source;
+    }
+    return undefined;
+  }
+
+  enableDirective(directive_define: DirectiveDefine) {
+    this.__context[symbols.DIRECTIVES] ||= {};
+    const directives = this.__context[symbols.DIRECTIVES];
+    directives[directive_define.key] = directive_define;
+  }
+
+  private __directive_callbacks = {} as AnyRecord;
+  bindDirectiveFromProps(props: AnyRecord) {
+    const directives_key = Object.keys(props);
+    for (const key of directives_key) {
+      const directiveDefine = this.matchDirective(key);
+      if (!directiveDefine) {
+        continue;
+      }
+      const value = props[key];
+      Object.entries(directiveDefine.hooks).forEach(([dirKey, dirFn]) => {
+        const old_cb = this.__directive_callbacks[dirKey];
+        if (old_cb) {
+          this.off(dirKey as any, old_cb);
+        }
+        const getNode = () => this.host?.elem || this.host?.currentView;
+        const cb = (this.__directive_callbacks[dirKey] = () =>
+          dirFn(value, getNode(), this, this.host));
+        this.on(dirKey as any, cb);
+      });
+    }
+  }
 }
+
+// initialize global source
+ElementSource.source_stack.push(ElementSource.global_source);

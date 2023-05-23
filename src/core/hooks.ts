@@ -1,4 +1,8 @@
-import { ElementSource, ElementSourceEventTypes } from './ElementSource';
+import {
+  DirectiveDefine,
+  ElementSource,
+  ElementSourceEventTypes,
+} from './ElementSource';
 import { FunctionComponent } from './FunctionComponent';
 import { SetupComponent } from './SetupComponent';
 import {
@@ -93,7 +97,7 @@ export const unmount = (
 
 export const setupEffect = (
   effectFn: (onCleanup: (callback: () => any) => any) => any,
-  options?: Pick<ReactiveEffectOptions, 'onTrack' | 'onTrigger'>
+  options?: Pick<ReactiveEffectOptions, 'onTrack' | 'onTrigger' | 'lazy'>
 ) => {
   let cleanupCallback = null as any;
   const runner = effect(
@@ -237,4 +241,9 @@ export const useDisposer = () => {
     callbacks.push(fn);
   }
   return disposeCallback;
+};
+
+export const enableDirective = (directive_define: DirectiveDefine) => {
+  const es = useElementSource();
+  es.enableDirective(directive_define);
 };

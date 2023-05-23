@@ -140,7 +140,7 @@ export function reactiveHydrate(
   children = <any>(children?.flat() || children);
   if (typeof type === 'string' || type instanceof Element) {
     const dom = ReactiveDOM.createReactiveDOM(type, props, children);
-    return dom.node;
+    return dom.elem;
   }
   const componentInstance = createComponent(type, props, children);
   componentInstance.ensureEffectRunner();

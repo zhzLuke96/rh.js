@@ -24,13 +24,12 @@ export class SetupComponent<
   }
 
   protected initialize() {
-    this.initializeComponent();
-  }
-
-  protected initializeComponent() {
     const node_cached = !!this.props['__node_cached'];
     this.source = new ElementSource(this, node_cached);
     this.source.once('unmount', () => this.dispose());
+
+    this.source.bindDirectiveFromProps(this.props);
+
     this.installSource();
     this.initializeSetup();
   }

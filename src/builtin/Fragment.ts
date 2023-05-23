@@ -5,6 +5,7 @@ import { component } from '../core/component';
 import { ElementSource } from '../core/ElementSource';
 import { cheapRemoveElem } from '../common/cheapRemoveElem';
 import { symbols } from '../constants';
+import { globalIdleScheduler } from '../common/IdleScheduler';
 
 const arrayify = (obj: any) => (Array.isArray(obj) ? obj : [obj]);
 
@@ -74,17 +75,22 @@ export const Fragment = component({
       component_context.children = newChildren as any[];
     };
 
-    const [effectRunner, stopEffect] = setupEffect(() => {
-      ElementSource.source_stack.push(fragmentES);
-      childrenRender();
-      ElementSource.source_stack.pop();
-    });
+    const [effectRunner, stopEffect] = setupEffect(
+      () => {
+        ElementSource.source_stack.push(fragmentES);
+        childrenRender();
+        ElementSource.source_stack.pop();
+      },
+      { lazy: true }
+    );
     const disposeEvent1 = onDomMutation(
       component_context.anchor,
       (parent) => {
         component_context.parentNode = parent;
-        // TIPS: Here instead of calling childrenRender directly but calling runner, it is to control the scope of tracking
-        effectRunner();
+        globalIdleScheduler.runTask(() => {
+          // TIPS: Here instead of calling childrenRender directly but calling runner, it is to control the scope of tracking
+          effectRunner();
+        });
       },
       'DOMNodeInserted'
     );
