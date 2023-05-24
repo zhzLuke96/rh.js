@@ -53,7 +53,7 @@ export const Fragment = component({
         for (const child of newChildren) {
           if (child) fragmentElement.appendChild(child);
         }
-        parentNode.appendChild(fragmentElement);
+        parentNode.insertBefore(fragmentElement, component_context.anchor);
         return;
       }
       if (newChildren.length === 0) {
