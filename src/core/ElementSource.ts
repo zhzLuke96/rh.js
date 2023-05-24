@@ -7,7 +7,7 @@ import { globalIdleScheduler } from '../common/IdleScheduler';
 import { AnyRecord } from './types';
 
 export type ElementSourceEventTypes = {
-  mount: () => any; // once
+  mount: (elem: Node, parentNode: Node) => any; // once
   update: () => any; // many
   unmount: () => any; // once
   throw: (value?: any) => any; // many or zero
@@ -145,13 +145,15 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
     return runner;
   }
 
-  throw(value: any, options?: { sync?: boolean }) {
+  throw(value: any, options?: { sync?: boolean; async?: boolean }) {
     const handler = () => this.emit('throw', value);
     if (options?.sync) {
       handler();
-    } else {
+    } else if (options?.async) {
       // Throw the error in the next tick and emit an event to indicate the update failure
       // This avoids merging effects if the component receiving the error is the same as the current component
+      setTimeout(handler, 0);
+    } else {
       globalIdleScheduler.runTask(handler);
     }
   }
@@ -220,7 +222,21 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
   }
 
   private __directive_callbacks = {} as AnyRecord;
-  bindDirectiveFromProps(props: AnyRecord) {
+  updateDirectiveCallback(directiveDefine: DirectiveDefine, value: any) {
+    const { hooks } = directiveDefine;
+    for (const [dirKey, dirCb] of Object.entries(hooks)) {
+      const old_cb = this.__directive_callbacks[dirKey];
+      if (old_cb) {
+        this.off(dirKey as any, old_cb);
+      }
+      const getNode = () => this.host?.elem || this.host?.currentView;
+      const cb = (this.__directive_callbacks[dirKey] = () =>
+        dirCb(value, getNode(), this, this.host));
+      this.on(dirKey as any, cb);
+    }
+  }
+
+  updateDirectiveFromProps(props: AnyRecord) {
     const directives_key = Object.keys(props);
     for (const key of directives_key) {
       const directiveDefine = this.matchDirective(key);
@@ -228,16 +244,7 @@ export class ElementSource extends EventEmitter<ElementSourceEventTypes> {
         continue;
       }
       const value = props[key];
-      Object.entries(directiveDefine.hooks).forEach(([dirKey, dirFn]) => {
-        const old_cb = this.__directive_callbacks[dirKey];
-        if (old_cb) {
-          this.off(dirKey as any, old_cb);
-        }
-        const getNode = () => this.host?.elem || this.host?.currentView;
-        const cb = (this.__directive_callbacks[dirKey] = () =>
-          dirFn(value, getNode(), this, this.host));
-        this.on(dirKey as any, cb);
-      });
+      this.updateDirectiveCallback(directiveDefine, value);
     }
   }
 }

@@ -20,6 +20,8 @@ import {
   ref,
   isRef,
   enableTracking,
+  readonly,
+  shallowRef,
 } from '@vue/reactivity';
 import { AnyRecord, ComponentDefine } from './types';
 import { ComponentType } from './rh.types';
@@ -233,7 +235,7 @@ export const useDisposer = () => {
     callbacks.forEach((cb) => cb());
     callbacks = [];
   });
-  function disposeCallback(fn: (...args: any[]) => any) {
+  function disposeCallback(fn: () => any) {
     if (unmounted) {
       fn();
       return;
@@ -246,4 +248,30 @@ export const useDisposer = () => {
 export const enableDirective = (directive_define: DirectiveDefine) => {
   const es = useElementSource();
   es.enableDirective(directive_define);
+};
+
+export const disableDirective = (directive_name: string) => {
+  const es = useElementSource();
+  es.enableDirective({
+    key: directive_name,
+    hooks: {},
+  });
+};
+
+export const useSubscription = <T = any>(
+  subscribe: (listener: () => void) => () => any,
+  getSnapshot: () => T
+) => {
+  const valueRef = shallowRef<T>();
+  const update = () => {
+    const nextValue = getSnapshot();
+    if (isSame(untrack(valueRef), nextValue)) {
+      return;
+    }
+    valueRef.value = nextValue;
+  };
+  update();
+  const dispose = subscribe(update);
+  onUnmount(dispose);
+  return readonly(valueRef as Ref<T>);
 };

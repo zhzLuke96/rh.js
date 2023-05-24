@@ -21,6 +21,9 @@ export {
   onUnmount,
   onUpdate,
   enableDirective,
+  disableDirective,
+  useSubscription,
+  useDisposer,
 } from './hooks';
 
 export * from './component';

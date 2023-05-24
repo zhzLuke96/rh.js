@@ -164,7 +164,7 @@ const connectStyleSheet = (options: ConnectStyleSheetOptions) => {
       parent.classList.remove(className);
     }
   };
-  onUnmount(onDomMutation(anchor, install, 'DOMNodeInserted'));
+  onUnmount(onDomMutation(anchor, install, 'DOMNodeInserted', { sync: true }));
   onUnmount(onDomMutation(anchor, uninstall, 'DOMNodeRemoved'));
 
   return { anchor };

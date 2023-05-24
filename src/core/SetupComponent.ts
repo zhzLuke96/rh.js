@@ -28,7 +28,7 @@ export class SetupComponent<
     this.source = new ElementSource(this, node_cached);
     this.source.once('unmount', () => this.dispose());
 
-    this.source.bindDirectiveFromProps(this.props);
+    this.source.updateDirectiveFromProps(this.props);
 
     this.installSource();
     this.initializeSetup();

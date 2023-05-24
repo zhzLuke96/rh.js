@@ -70,7 +70,7 @@ export class ReactiveDOM {
       this.elem,
       (parent, dom) => {
         this.dispose_onDomInserted?.();
-        this.source.emit('mount');
+        this.source.emit('mount', dom, parent);
       },
       'DOMNodeInserted'
     );
@@ -82,7 +82,7 @@ export class ReactiveDOM {
     this.props = props;
     this.children = children;
 
-    this.source.bindDirectiveFromProps(props);
+    this.source.updateDirectiveFromProps(props);
 
     this.source.emit('update_before');
     this.source.emit('update');
@@ -96,7 +96,7 @@ export class ReactiveDOM {
       }
       (<any>this.elem)[symbols.DISPOSE] = () => this.source.emit('unmount');
     } catch (error) {
-      this.source.throw(error);
+      this.source.throw(error, { async: true });
       console.error(error);
     } finally {
       this.source.emit('update_after');

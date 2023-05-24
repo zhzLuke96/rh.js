@@ -1,3 +1,5 @@
+import { globalIdleScheduler } from './IdleScheduler';
+
 /**
  * callback on dom inserted
  *
@@ -7,15 +9,30 @@
 export const onDomMutation = (
   dom: Node,
   fn: (parent: HTMLElement, source: Node) => any,
-  mutationEvent: 'DOMNodeInserted' | 'DOMNodeRemoved'
+  mutationEvent: 'DOMNodeInserted' | 'DOMNodeRemoved',
+  options?: {
+    maybeFragment?: boolean;
+    sync?: boolean;
+  }
 ) => {
   const handler = (event: any) => {
     const parent = event.relatedNode;
     if (!parent) {
       return;
     }
+    if (
+      !options?.maybeFragment &&
+      parent.nodeType === Node.DOCUMENT_FRAGMENT_NODE
+    ) {
+      return;
+    }
     if (parent === dom.parentNode) {
-      fn(parent, dom);
+      if (options?.sync) {
+        fn(parent, dom);
+      } else {
+        globalIdleScheduler.runTask(() => fn(parent, dom));
+      }
+      // fn(parent, dom);
     }
   };
   dom.addEventListener(mutationEvent, handler);

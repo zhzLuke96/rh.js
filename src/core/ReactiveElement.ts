@@ -70,7 +70,7 @@ export class ReactiveElement implements IReactiveElement {
       this.currentView,
       (parent, dom) => {
         this.dispose_onDomInserted?.();
-        this.source.emit('mount');
+        this.source.emit('mount', dom, parent);
 
         // inject anchor
         if (this.viewAnchor !== dom) {
@@ -124,7 +124,7 @@ export class ReactiveElement implements IReactiveElement {
       this.source.emit('update');
       this._update();
     } catch (error) {
-      this.source.throw(error);
+      this.source.throw(error, { async: true });
       console.error(error);
     } finally {
       ElementSource.source_stack.pop();

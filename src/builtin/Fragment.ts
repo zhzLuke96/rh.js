@@ -41,11 +41,25 @@ export const Fragment = component({
       dispose?.();
     };
 
-    const childrenRender = () => {
+    const patchChildren = (newChildren: (Node | null)[]) => {
       const oldChildren = component_context.children;
-      const newChildren = childrenRenderFunc();
       const { parentNode, anchor } = component_context;
       if (!parentNode) {
+        return;
+      }
+
+      if (oldChildren.length === 0) {
+        const fragmentElement = document.createDocumentFragment();
+        for (const child of newChildren) {
+          if (child) fragmentElement.appendChild(child);
+        }
+        parentNode.appendChild(fragmentElement);
+        return;
+      }
+      if (newChildren.length === 0) {
+        for (const child of oldChildren) {
+          if (child) parentNode.removeChild(child);
+        }
         return;
       }
 
@@ -65,20 +79,28 @@ export const Fragment = component({
           // cheapRemoveElem(oldOne);
           oldOne.remove();
           disposeNode(oldOne);
-        } else if (!oldOne && newOne) {
-          parentNode.insertBefore(newOne, anchor);
-        } else if (oldOne && newOne) {
-          parentNode.replaceChild(newOne, oldOne);
+        } else if (!oldOne) {
+          if (newOne) {
+            parentNode.insertBefore(newOne, anchor);
+          }
+        } else if (oldOne) {
+          if (newOne) {
+            parentNode.replaceChild(newOne, oldOne);
+          } else {
+            oldOne.remove();
+          }
           disposeNode(oldOne);
         }
       }
-      component_context.children = newChildren as any[];
+      return;
     };
 
     const [effectRunner, stopEffect] = setupEffect(
       () => {
         ElementSource.source_stack.push(fragmentES);
-        childrenRender();
+        const newChildren = childrenRenderFunc();
+        patchChildren(newChildren);
+        component_context.children = newChildren.filter(Boolean) as any[];
         ElementSource.source_stack.pop();
       },
       { lazy: true }
@@ -111,14 +133,14 @@ export const Fragment = component({
     };
     onUnmount(unmountEffect);
 
-    useElementSource((es) => {
-      es.__parent_source?.once('update_before', () => {
-        component_context.children.forEach(cheapRemoveElem);
-        es.__parent_source?.once('update_after', () => {
-          cheapRemoveElem(component_context.anchor);
-        });
-      });
-    });
+    // useElementSource((es) => {
+    //   es.__parent_source?.once('update_before', () => {
+    //     component_context.children.forEach(cheapRemoveElem);
+    //     es.__parent_source?.once('update_after', () => {
+    //       cheapRemoveElem(component_context.anchor);
+    //     });
+    //   });
+    // });
     return component_context;
   },
   render(_, ctx) {

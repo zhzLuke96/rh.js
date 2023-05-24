@@ -1,9 +1,9 @@
 import { Queue } from './Queue';
 
-type IdleTaskFunction = (deadline: { timeRemaining: () => number }) => any;
+type IdleTaskFunction<RET> = (deadline: { timeRemaining: () => number }) => RET;
 export class IdleScheduler {
   private frameDeadline: number;
-  private taskQueue: Queue<IdleTaskFunction>;
+  private taskQueue: Queue<IdleTaskFunction<any>>;
   private channel: MessageChannel;
   private messagePort: MessagePort;
   private triggerPort: MessagePort;
@@ -27,22 +27,29 @@ export class IdleScheduler {
     return Math.max(0, this.frameDeadline - performance.now());
   }
 
-  private execTask(task: IdleTaskFunction) {
-    task({
+  private execTask(task: IdleTaskFunction<any>) {
+    return task({
       timeRemaining: (): number => this.timeRemaining(),
     });
   }
 
   private handleTask(): void {
+    if (this.timeRemaining() <= 0) {
+      this.trigger();
+      return;
+    }
     let task = this.taskQueue.dequeue();
     while (task) {
-      this.execTask(task);
-      if (this.timeRemaining() <= 0) {
-        this.trigger();
-        break;
+      try {
+        this.execTask(task);
+      } finally {
+        if (this.timeRemaining() <= 0) {
+          break;
+        }
+        task = this.taskQueue.dequeue();
       }
-      task = this.taskQueue.dequeue();
     }
+    this.trigger();
   }
 
   private trigger() {
@@ -62,13 +69,20 @@ export class IdleScheduler {
     });
   }
 
-  public runTask(task: IdleTaskFunction): void {
+  public async runTask<RET = any>(task: IdleTaskFunction<RET>): Promise<RET> {
     if (!this.rafTriggered && performance.now() < this.frameDeadline) {
-      this.execTask(task);
-      return;
+      return this.execTask(task);
     }
-    this.taskQueue.enqueue(task);
-    this.trigger();
+    return new Promise<RET>((resolve, reject) => {
+      this.taskQueue.enqueue(() => {
+        try {
+          resolve(this.execTask(task));
+        } catch (error) {
+          reject(error);
+        }
+      });
+      this.trigger();
+    });
   }
 }
 

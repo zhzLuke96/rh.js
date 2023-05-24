@@ -39,6 +39,8 @@ export const Scope: FunctionComponentDefine<ScopeProps> = (
   setupScopeContext(shadowRoot);
 
   return () => {
+    shadowRoot.innerHTML = '';
+
     let rootChildren = render();
     if (!Array.isArray(rootChildren)) {
       rootChildren = [rootChildren];
