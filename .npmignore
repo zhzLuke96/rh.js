@@ -39,3 +39,4 @@ prettier.config.js
 *.html
 .node-version
 .editorconfig
+benchmarks/

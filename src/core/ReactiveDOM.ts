@@ -1,11 +1,32 @@
 import { isRef, pauseTracking, resetTracking, unref } from '@vue/reactivity';
 import { cheapRemoveElem } from '../common/cheapRemoveElem';
-import { globalIdleScheduler } from '../common/IdleScheduler';
 import { onDomMutation } from '../common/onDomMutation';
 import { symbols } from '../constants';
 import { ElementSource } from './ElementSource';
 import { ReactiveElement } from './ReactiveElement';
 import { AnyRecord } from './types';
+
+/**
+ * like unref, but call all functions on the target
+ */
+export const unEffect = <T>(target: T): T => {
+  if (Array.isArray(target)) {
+    return target.map(unEffect) as any;
+  }
+  if (isRef(target)) {
+    return unref(target) as any;
+  }
+  if (typeof target === 'object') {
+    return Object.keys(target as any).reduce((acc, key) => {
+      acc[key] = unEffect((target as any)[key]);
+      return acc;
+    }, {} as any);
+  }
+  if (typeof target === 'function') {
+    return target();
+  }
+  return target;
+};
 
 // tag + props + children => ReactiveDOM
 export class ReactiveDOM {
@@ -87,6 +108,7 @@ export class ReactiveDOM {
     this.source.emit('update_before');
     this.source.emit('update');
 
+    let emitErr: any;
     try {
       pauseTracking();
       this.hydrateChildren();
@@ -98,8 +120,9 @@ export class ReactiveDOM {
     } catch (error) {
       this.source.throw(error, { async: true });
       console.error(error);
+      emitErr = error;
     } finally {
-      this.source.emit('update_after');
+      this.source.idleEmit('update_after', emitErr);
     }
   }
 
@@ -166,19 +189,31 @@ export class ReactiveDOM {
         }
         return;
       }
+      if (key === 'class') {
+        if (Array.isArray(val)) {
+          this.elem.setAttribute('class', val.join(' '));
+        } else if (typeof val === 'string' || val instanceof String) {
+          this.elem.setAttribute('class', String(val));
+        } else if (typeof val === 'object' && val) {
+          this.elem.setAttribute(
+            'class',
+            Object.entries(val)
+              .filter(([k, v]) => !!v)
+              .map(([k]) => k)
+              .join(' ')
+          );
+        }
+        return;
+      }
       this.elem.setAttribute(key, val);
     };
-    if (isRef(value)) {
-      this.source.effect(
-        () => {
-          const val = unref(value);
-          setAttribute(val);
-        },
-        { lazy: false }
-      );
-    } else {
-      setAttribute(value);
-    }
+    this.source.effect(
+      () => {
+        const val = unEffect(value);
+        setAttribute(val);
+      },
+      { lazy: false }
+    );
   }
 
   private hydrateChildren() {

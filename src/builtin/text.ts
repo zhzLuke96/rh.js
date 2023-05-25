@@ -1,4 +1,4 @@
-import { isRef, Ref } from '@vue/reactivity';
+import { isRef, Ref, unref } from '@vue/reactivity';
 import { setupEffect } from '../core/hooks';
 
 /**
@@ -17,7 +17,9 @@ export const text = (
     if (typeof slot === 'function') {
       setupEffect(() => (slotNode.textContent = slot()));
     } else if (isRef(slot)) {
-      setupEffect(() => (slotNode.textContent = String(slot.value)));
+      setupEffect(() => (slotNode.textContent = String(unref(slot))));
+    } else if (slot !== undefined && slot !== null) {
+      slotNode.textContent = String(slot);
     }
     ret.push(slotNode);
   }

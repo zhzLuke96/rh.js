@@ -117,8 +117,9 @@ export class ReactiveElement implements IReactiveElement {
       this.source.emit('unmount');
       return;
     }
-
     this.source.emit('update_before');
+
+    let emitErr: any;
     try {
       ElementSource.source_stack.push(this.source);
       this.source.emit('update');
@@ -126,9 +127,10 @@ export class ReactiveElement implements IReactiveElement {
     } catch (error) {
       this.source.throw(error, { async: true });
       console.error(error);
+      emitErr = error;
     } finally {
       ElementSource.source_stack.pop();
-      this.source.emit('update_after');
+      this.source.idleEmit('update_after', emitErr);
     }
   }
 

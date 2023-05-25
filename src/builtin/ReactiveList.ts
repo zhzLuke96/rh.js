@@ -6,7 +6,7 @@ import {
   useElementSource,
   setupEffect,
   skip,
-  onMount,
+  depend,
 } from '../core/hooks';
 import { rh } from '../core/reactiveHydrate';
 import { ElementSource } from '../core/ElementSource';
@@ -25,6 +25,8 @@ interface ReactiveListProps<T> {
   tagName?: string;
   needUpdate?: (a: T, b: T) => boolean;
   [K: string]: any; // props
+
+  dependencies?: Ref<any>[];
 }
 
 const snapshotRaw = <T>(x: T): T => {
@@ -44,6 +46,7 @@ export const ReactiveList = <T>({
     a: T,
     b: T
   ) => boolean,
+  dependencies,
 }: ReactiveListProps<T>) => {
   const itemNodesRef = shallowRef<
     { data: T; node: HTMLElement; del?: boolean }[]
@@ -99,6 +102,7 @@ export const ReactiveList = <T>({
 
   const [runner] = setupEffect(
     () => {
+      depend(...dependencies);
       const items =
         typeof getItems === 'function' ? getItems() : unref(getItems);
       childrenRender(items, () => runner?.effect.run());
