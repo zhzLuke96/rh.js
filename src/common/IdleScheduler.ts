@@ -1,5 +1,14 @@
 import { Queue } from './Queue';
 
+export type IdleTask<T> = {
+  promise: Promise<T | undefined>;
+  cancel: () => void;
+  state: () => {
+    isCancelled: boolean;
+    isDone: boolean;
+    result: any;
+  };
+};
 type IdleTaskFunction<RET> = (deadline: { timeRemaining: () => number }) => RET;
 export class IdleScheduler {
   private frameDeadline: number;
@@ -56,7 +65,7 @@ export class IdleScheduler {
     if (this.rafTriggered) {
       return;
     }
-    if (this.taskQueue.length === 0) {
+    if (this.taskQueue.size === 0) {
       return;
     }
     this.rafTriggered = true;
@@ -83,6 +92,44 @@ export class IdleScheduler {
       });
       this.trigger();
     });
+  }
+
+  public buildTask<RET = any>(task: IdleTaskFunction<RET>): IdleTask<RET> {
+    let isCancelled = false;
+    let isDone = false;
+    let result = undefined as any;
+
+    let resolve: any, reject: any;
+    const promise = new Promise<RET | undefined>((arg1, arg2) => {
+      resolve = arg1;
+      reject = arg2;
+    });
+    const wrappedTask = (deadline: { timeRemaining: () => number }) => {
+      if (isCancelled) {
+        resolve(undefined);
+        return;
+      }
+      result = task(deadline);
+      isDone = true;
+      resolve(result);
+      return result;
+    };
+    this.taskQueue.enqueue(wrappedTask);
+
+    const cancel = (): void => {
+      isCancelled = true;
+      if (this.taskQueue.size <= /* a magic number => */ 5000) {
+        this.taskQueue.remove(wrappedTask);
+      }
+    };
+
+    this.trigger();
+
+    return {
+      cancel,
+      promise,
+      state: () => ({ isCancelled, isDone, result }),
+    };
   }
 }
 

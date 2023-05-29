@@ -80,6 +80,11 @@ export class EventEmitter<
   ): boolean {
     let eventObjects = this.#getEventObjects(eventName);
     if (!eventObjects.length) return false;
+    // eventObjects.forEach(({ context, listener, once }) => {
+    //   if (once) this.#removeEventObjects(eventName, listener, undefined, true);
+    //   listener.apply(context, args);
+    // });
+    // async
     eventObjects.forEach(({ context, listener, once }) => {
       globalIdleScheduler.runTask(() => {
         if (once)

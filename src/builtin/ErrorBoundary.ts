@@ -1,8 +1,11 @@
 import { ref } from '@vue/reactivity';
-import { component } from '../core/component';
-import { skip } from '../core/hooks';
-import { ElementView } from '../core/types';
-import { ElementSource } from '../core/ElementSource';
+import {
+  component,
+  InlineRender,
+  InlineRenderResult,
+  onError,
+  skip,
+} from '../core/core';
 
 /**
  * Error Boundary
@@ -10,18 +13,17 @@ import { ElementSource } from '../core/ElementSource';
 export const ErrorBoundary = component({
   setup({
     fallbackRender,
-    onError,
+    onError: _onError,
     render,
   }: {
-    fallbackRender: (error: Error, rerender: () => any) => ElementView;
+    fallbackRender: (error: Error, rerender: () => any) => InlineRenderResult;
     onError?: (error: Error) => void;
-    render: () => ElementView;
+    render: InlineRender;
   }) {
-    const self_source = ElementSource.peek();
     let catchError = ref(null as null | Error);
-    self_source.on('throw', (detail: any) => {
+    onError((detail) => {
       if (detail instanceof Error) {
-        onError?.(detail);
+        _onError?.(detail);
         catchError.value = detail;
       }
     });

@@ -1,8 +1,13 @@
 import { ref } from '@vue/reactivity';
-import { ComponentDefine, ElementView } from '../core/types';
-import { rh } from '../core/reactiveHydrate';
-import { onThrow } from '../core/hooks';
-import { ReactiveElement } from '../core/ReactiveElement';
+import {
+  Component,
+  InlineRender,
+  rh,
+  onCatch,
+  View,
+  useCurrentView,
+  weakMount,
+} from '../core/core';
 
 type PromiseState = 'pending' | 'fulfilled' | 'rejected';
 
@@ -20,30 +25,26 @@ export const Suspense = ({
   fallback,
   error,
 }: {
-  component?: ComponentDefine;
-  render?: () => ElementView;
-  fallback: () => ElementView;
-  error?: () => ElementView;
+  component?: Component;
+  render?: InlineRender;
+  fallback: InlineRender;
+  error?: InlineRender;
 }) => {
-  const state = ref<PromiseState>('fulfilled');
-  // const promise = shallowRef<null | Promise<any>>(null);
-  onThrow(async (value) => {
+  const state = ref<PromiseState>('pending');
+
+  onCatch(async (value) => {
     if (isPromise(value)) {
-      // promise.value = value;
       state.value = 'pending';
       value.then(() => (state.value = 'fulfilled'));
       value.catch(() => (state.value = 'rejected'));
     }
   });
 
-  const anchor = component
-    ? rh(component)
-    : render
-    ? rh(() => () => ReactiveElement.warpView(render()))
-    : null;
+  const anchor = weakMount(() =>
+    component ? rh(component) : render ? rh(() => render) : null
+  );
 
-  // The innerView is used to solve the problem that `update_after` will trigger `unmount`, Suspense will never update, only when Suspense `unmount`, the component will `unmount`
-  const innerView = rh(() => () => {
+  return () => {
     switch (state.value) {
       case 'pending':
         return fallback();
@@ -52,7 +53,5 @@ export const Suspense = ({
       case 'rejected':
         return (error || fallback)();
     }
-  });
-
-  return () => innerView;
+  };
 };

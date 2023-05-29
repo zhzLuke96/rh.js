@@ -16,7 +16,7 @@ export const onDomMutation = (
   }
 ) => {
   const handler = (event: any) => {
-    const parent = event.relatedNode;
+    const parent = event.relatedNode as HTMLElement;
     if (!parent) {
       return;
     }
@@ -30,7 +30,11 @@ export const onDomMutation = (
       if (options?.sync) {
         fn(parent, dom);
       } else {
-        globalIdleScheduler.runTask(() => fn(parent, dom));
+        globalIdleScheduler.runTask(() => {
+          if (parent.contains(dom)) {
+            fn(parent, dom);
+          }
+        });
       }
       // fn(parent, dom);
     }

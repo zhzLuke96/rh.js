@@ -1,19 +1,16 @@
-import { symbols } from '../constants';
-import { useContainerContextProxy } from '../core/context';
-import { ReactiveElement } from '../core/ReactiveElement';
-import { rh } from '../core/reactiveHydrate';
-import { useElementSource } from '../core/hooks';
-import { ElementView, FunctionComponentDefine } from '../core/types';
+import { symbols } from './constants';
+import { useContextProxy } from '../core/context';
+import { FC, InlineRender, rh, useCurrentView, View } from '../core/core';
 
 type ScopeProps = {
   tagName?: keyof HTMLElementTagNameMap;
-  render: () => ElementView[] | ElementView;
+  slotRender?: InlineRender;
   [k: string]: any;
 };
 
 const setupScopeContext = (shadowRoot: ShadowRoot) => {
-  const es = useElementSource();
-  const context = useContainerContextProxy();
+  const view = View.topView();
+  const context = useContextProxy();
 
   let supperRoot: any;
   const setRoot = () => {
@@ -24,31 +21,27 @@ const setupScopeContext = (shadowRoot: ShadowRoot) => {
     context[symbols.STYLESHEET_ROOT] = supperRoot;
     supperRoot = undefined;
   };
-  es.on('update_before', setRoot);
-  es.on('update_after', resetRoot);
+  view.events.on('update_before', setRoot);
+  view.events.on('update_after', resetRoot);
   setRoot();
 };
 
-export const Scope: FunctionComponentDefine<ScopeProps> = (
-  { tagName = 'div', render, ...props },
+export const Scope: FC<ScopeProps> = (
+  { tagName = 'div', slotRender, ...props },
   state,
   children
 ) => {
-  const shadowHost = rh(tagName, props, ...children);
+  const shadowHost = rh(tagName, props, slotRender);
   const shadowRoot = (<HTMLElement>shadowHost).attachShadow({ mode: 'open' });
   setupScopeContext(shadowRoot);
 
-  return () => {
-    shadowRoot.innerHTML = '';
-
-    let rootChildren = render();
-    if (!Array.isArray(rootChildren)) {
-      rootChildren = [rootChildren];
-    }
-    rootChildren
-      .map((child) => ReactiveElement.warp(child))
-      .filter(Boolean)
-      .forEach((child) => shadowRoot.appendChild(child!));
-    return shadowHost;
-  };
+  const scopeView = useCurrentView();
+  rh(shadowRoot, {}, children);
+  const view = View.dom2view.get(shadowRoot);
+  if (view) {
+    shadowRoot.appendChild(view.anchor);
+    view.parentView = scopeView;
+    view.initialize();
+  }
+  return () => shadowHost;
 };

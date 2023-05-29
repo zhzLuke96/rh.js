@@ -9,8 +9,9 @@ export type NestedCSSProperties = CSSProperties & {
 const isDocumentOrShadowRoot = (
   node: Node
 ): node is DocumentOrShadowRoot & Node =>
-  node.nodeType === Node.DOCUMENT_NODE ||
-  node.nodeType === Node.DOCUMENT_FRAGMENT_NODE;
+  node &&
+  (node.nodeType === Node.DOCUMENT_NODE ||
+    node.nodeType === Node.DOCUMENT_FRAGMENT_NODE);
 
 const createStyleSheetHandler = (
   styleFn: () => NestedCSSProperties,
@@ -63,7 +64,7 @@ export const createDOMStyleSheet = (
         styleDOM.innerHTML = cssText;
       },
       installSheet(root) {
-        root.appendChild(styleDOM);
+        root.insertBefore(styleDOM, root.firstChild);
       },
       uninstallSheet(root) {
         styleDOM.parentNode?.removeChild(styleDOM);

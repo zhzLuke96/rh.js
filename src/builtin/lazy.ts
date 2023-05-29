@@ -1,20 +1,18 @@
 import { ref } from '@vue/reactivity';
-import { ComponentDefine } from '../core/types';
-import { rh } from '../core/reactiveHydrate';
-import { untrack, useElementSource } from '../core/hooks';
+import { Component, rh, untrack, View } from '../core/core';
 
 type ModuleLike<T> = { default: T };
-export const lazy = <Component extends ComponentDefine>(
-  module_loader: () => Promise<ModuleLike<ComponentDefine>>
+export const lazy = <ComponentExport extends Component>(
+  module_loader: () => Promise<ModuleLike<Component>>
 ) => {
-  let module: ModuleLike<ComponentDefine> | null = null;
-  let p: Promise<ModuleLike<ComponentDefine>> | null = null;
+  let module: ModuleLike<Component> | null = null;
+  let p: Promise<ModuleLike<Component>> | null = null;
 
   const ensure_module = () =>
     p || (p = module_loader().then((result) => (module = result)));
 
   const fnComponent = ((props: any, ...children: any[]) => {
-    const es = useElementSource();
+    const view = View.topView();
     const moduleRef = ref(module);
     if (!module) {
       const promise = ensure_module().then((module) => {
@@ -23,11 +21,11 @@ export const lazy = <Component extends ComponentDefine>(
         }
         moduleRef.value = module;
       });
-      es.emit('throw', promise);
+      view.events.emit('throw', promise);
     }
     return () =>
       moduleRef.value ? rh(moduleRef.value.default, props, ...children) : null;
-  }) as unknown as Component;
+  }) as unknown as ComponentExport;
 
   return fnComponent;
 };

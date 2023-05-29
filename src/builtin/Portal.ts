@@ -1,21 +1,25 @@
-import { rh } from '../core/reactiveHydrate';
-import { onUnmount } from '../core/hooks';
-import { FC } from '../core/types';
+import { FC, onUnmounted, rh, View, weakMount } from '../core/core';
 
 /**
  * Portal Component
  */
 export const Portal: FC<{
-  container?: HTMLElement;
+  node?: any;
   [K: string]: any;
-}> = ({ container, ...props }, state: any, children: any[]) => {
-  const target_container: HTMLElement =
-    container || document.createElement('div');
-  document.body.appendChild(target_container);
-  // same appendChild, but parse props
-  rh(target_container, props, ...children);
-  onUnmount(() => {
-    target_container.parentElement?.removeChild(target_container);
-  });
+}> = ({ node, ...props }, state: any, children: any[]) => {
+  const container: Element = node || document.createElement('div');
+
+  const mount_on_self_container = !node;
+  if (mount_on_self_container) {
+    document.body.appendChild(container);
+    onUnmounted(() => container.parentNode?.removeChild(container));
+  }
+
+  const anchor = weakMount(() => rh('div', props, ...children));
+  const view = anchor && View.dom2view.get(anchor);
+  if (view) {
+    view.mount(container);
+  }
+
   return () => null;
 };

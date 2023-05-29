@@ -1,5 +1,5 @@
 import { computed, unref } from '@vue/reactivity';
-import { onUnmount } from '../core/hooks';
+import { onUnmounted } from '../core/core';
 
 const unrefFn = (val: any) => unref(typeof val === 'function' ? val() : val);
 /**
@@ -18,6 +18,6 @@ export const raw = (strings: string[], ...values: any[]) =>
 
 export const rawRef = (strings: string[], ...values: any[]) => {
   const ref = computed(() => raw(strings, ...values));
-  onUnmount(() => ref.effect.stop());
+  onUnmounted(() => ref.effect.stop());
   return ref;
 };

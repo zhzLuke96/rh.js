@@ -1,3 +1,3 @@
-export * from './core/main';
+export * from '@vue/reactivity';
+export * from './core';
 export * from './builtin';
-export * as builtin from './builtin';

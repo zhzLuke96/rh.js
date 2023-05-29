@@ -11,12 +11,12 @@ class QueueNode<T> {
 export class Queue<T> {
   head: QueueNode<T> | null;
   tail: QueueNode<T> | null;
-  length: number;
+  size: number;
 
   constructor() {
     this.head = null;
     this.tail = null;
-    this.length = 0;
+    this.size = 0;
   }
 
   enqueue(data: T) {
@@ -30,7 +30,7 @@ export class Queue<T> {
       }
       this.tail = node;
     }
-    this.length++;
+    this.size++;
   }
 
   dequeue(): T | null {
@@ -42,12 +42,37 @@ export class Queue<T> {
       if (this.isEmpty()) {
         this.tail = null;
       }
-      this.length--;
+      this.size--;
       return data;
     }
   }
 
+  remove(data: T): void {
+    let current = this.head;
+    let prev = null;
+
+    while (current) {
+      if (current.data === data) {
+        if (!prev) {
+          this.head = current.next;
+          if (!this.head) {
+            this.tail = null;
+          }
+        } else {
+          prev.next = current.next;
+          if (!current.next) {
+            this.tail = prev;
+          }
+        }
+        this.size--;
+        return;
+      }
+      prev = current;
+      current = current.next;
+    }
+  }
+
   isEmpty(): boolean {
-    return this.length === 0;
+    return this.size === 0;
   }
 }
