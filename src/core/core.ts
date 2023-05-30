@@ -1184,7 +1184,7 @@ export function skip<T, ARGS extends any[]>(
   }
 }
 export const untrack = <T>(value: MaybeRefOrGetter<T>): T =>
-  typeof value === 'function' ? skip(value as any) : (skip(unref, ref) as T);
+  typeof value === 'function' ? skip(value as any) : (skip(unref, value) as T);
 
 export const onViewEvent = <Event extends keyof ViewEvent>(
   event: Event,
