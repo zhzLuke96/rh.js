@@ -1182,7 +1182,8 @@ export function skip<T, ARGS extends any[]>(
     resetTracking();
   }
 }
-export const untrack = <T>(ref: Ref<T>) => skip(unref, ref);
+export const untrack = <T>(value: MaybeRefOrGetter<T>): T =>
+  typeof value === 'function' ? skip(value as any) : (skip(unref, ref) as T);
 
 export const onViewEvent = <Event extends keyof ViewEvent>(
   event: Event,
@@ -1258,8 +1259,8 @@ export function createWatcher(
   let value: any;
   return createEffect(() => {
     const nextValue = isRef(getterOrRef) ? getterOrRef.value : getterOrRef();
-    value = nextValue;
     skip(callback, nextValue, value);
+    value = nextValue;
   }, options);
 }
 
