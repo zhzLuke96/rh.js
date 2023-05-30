@@ -8,6 +8,7 @@ import {
   ref,
   Ref,
   resetTracking,
+  shallowRef,
   unref,
   UnwrapRef,
 } from '@vue/reactivity';
@@ -1241,6 +1242,22 @@ export const createEffect = (
   return runner;
 };
 
+type StateSetter<T> = {
+  (value: T): void;
+  (update: (x: T) => T): void;
+};
+export function createState<T>(initialState: T) {
+  const state = shallowRef(initialState);
+  const setState: StateSetter<T> = (valueOrUpdate: any) => {
+    if (typeof valueOrUpdate === 'function') {
+      state.value = valueOrUpdate(untrack(state));
+    } else {
+      state.value = valueOrUpdate;
+    }
+  };
+  return [readonly(state), setState] as const;
+}
+
 export function createWatcher<T>(
   targetRef: Ref<T>,
   callback: (value: T | undefined, prev: T | undefined) => any,
@@ -1268,7 +1285,7 @@ export type SubscribedValue<T> = {
   readonly value: T;
 } & Ref<T>;
 
-export function createSubStore<T>(
+export function createSubscription<T>(
   subscribe: (listener: () => any) => () => void,
   getSnapshot: () => T
 ): SubscribedValue<T> {
@@ -1282,6 +1299,57 @@ export function createSubStore<T>(
   });
   onMounted(offListener);
   return readonly(valueRef);
+}
+
+type ResourceFetcher<T, ARGS extends any[] = any[]> = (
+  ...args: ARGS
+) => PromiseLike<T>;
+
+export function createResource<T, ARGS extends any[] = any[]>(
+  fetcher: ResourceFetcher<T, ARGS>,
+  options?: {
+    onError?: (err?: any) => any;
+    onSuccess?: (value: T) => any;
+    initialData?: T;
+  }
+) {
+  const [data, mutate] = createState<T | undefined>(options?.initialData);
+
+  const fetching = ref(false);
+  const enabled = ref(true);
+  const error = ref<any>(null);
+
+  const refetch = async (...args: ARGS) => {
+    if (untrack(fetching)) {
+      return;
+    }
+    if (!untrack(enabled)) {
+      return;
+    }
+    try {
+      fetching.value = true;
+      const result = await fetcher(...args);
+      mutate(result);
+      options?.onSuccess?.(result);
+    } catch (err) {
+      error.value = err;
+      options?.onError?.(err);
+      console.error(err);
+    } finally {
+      fetching.value = false;
+    }
+  };
+
+  return [
+    data,
+    {
+      mutate,
+      refetch,
+      fetching,
+      enabled,
+      error,
+    },
+  ] as const;
 }
 
 export type MemoValue<T> = {
@@ -1305,22 +1373,6 @@ export function createMemo<T>(
     valueRef.value = value;
   });
   return readonly(valueRef);
-}
-
-type StateSetter<T> = {
-  (value: T): void;
-  (update: (x: T) => T): void;
-};
-export function createState<T>(initialState: T) {
-  const state = ref(initialState);
-  const setState: StateSetter<T> = (valueOrUpdate: any) => {
-    if (typeof valueOrUpdate === 'function') {
-      state.value = valueOrUpdate(untrack(state));
-    } else {
-      state.value = valueOrUpdate;
-    }
-  };
-  return [readonly(state), setState] as const;
 }
 
 export interface Reducer<State, Action> {
@@ -1365,6 +1417,18 @@ export function enableDirective(directive: DirectiveDefine) {
     directives = {};
   }
   directives[directive.key] = directive;
+  view.setContextValue(sym, directives);
+}
+
+export function disableDirective(key: string) {
+  const sym = View.symbols.DIRECTIVES;
+  const view = View.topView();
+  let directives = view.getContextValue(sym);
+  if (View.isNone(directives)) {
+    directives = {};
+  }
+  // overwrite directive that current layer
+  directives[key] = { key };
   view.setContextValue(sym, directives);
 }
 
