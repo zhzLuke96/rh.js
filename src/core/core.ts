@@ -1276,8 +1276,8 @@ export function createWatcher(
   let value: any;
   return createEffect(() => {
     const nextValue = isRef(getterOrRef) ? getterOrRef.value : getterOrRef();
-    value = nextValue;
     skip(callback, nextValue, value);
+    value = nextValue;
   }, options);
 }
 
