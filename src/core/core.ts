@@ -12,7 +12,12 @@ import {
   UnwrapRef,
 } from '@vue/reactivity';
 import EventEmitter from 'eventemitter3';
-import { globalIdleScheduler, IdleTask } from '../common/IdleScheduler';
+import {
+  globalIdleScheduler,
+  IdleTask,
+  UniqIdleScheduler,
+} from '../common/IdleScheduler';
+import { shallowEqual } from '../common/shallowEqual';
 
 export type MaybeRef<T = any> = T | Ref<T>;
 export type MaybeRefOrGetter<T = any> = MaybeRef<T> | (() => T);
@@ -74,35 +79,6 @@ function element2node(element: ReactiveViewElement): Node | null {
     return view.anchor;
   }
   return document.createTextNode(String(element));
-}
-
-const hasOwnProperty = Object.prototype.hasOwnProperty;
-function shallowEqual(objA: any, objB: any): boolean {
-  if (Object.is(objA, objB)) {
-    return true;
-  }
-  if (
-    typeof objA !== 'object' ||
-    objA === null ||
-    typeof objB !== 'object' ||
-    objB === null
-  ) {
-    return false;
-  }
-  const keysA = Object.keys(objA);
-  const keysB = Object.keys(objB);
-  if (keysA.length !== keysB.length) {
-    return false;
-  }
-  for (let i = 0; i < keysA.length; i++) {
-    if (
-      !hasOwnProperty.call(objB, keysA[i]) ||
-      !Object.is(objA[keysA[i]], objB[keysA[i]])
-    ) {
-      return false;
-    }
-  }
-  return true;
 }
 
 const patchView = (oldView: View, newView: View) => {
@@ -435,6 +411,8 @@ export class View {
 
   __index = View.getNextIndex();
 
+  scheduler = new UniqIdleScheduler();
+
   events = new EventEmitter<ViewEvent>();
 
   anchor: Node;
@@ -507,9 +485,9 @@ export class View {
   }
 
   private isFirstPatched = false;
-  private latestPatchChildrenTask = null as IdleTask<any> | null;
   patchChildren(elements: ReactiveViewElement[]) {
     const newChildren = elements
+      .flat(64)
       .map((element) => element2node(element))
       .filter(Boolean) as Node[];
 
@@ -530,8 +508,7 @@ export class View {
 
     if (this.isFirstPatched) {
       // * async patch
-      this.latestPatchChildrenTask?.cancel();
-      this.latestPatchChildrenTask = globalIdleScheduler.buildTask(patchTask);
+      this.scheduler.runTask('patch-children', patchTask);
     } else {
       // * sync patch
       patchTask();
@@ -637,8 +614,10 @@ export class View {
           const newView = newNode.view!;
           const oldView = oldNode.view!;
           patchView(oldView, newView);
-          newView.children = [];
-          newView.unmount();
+          if (newView !== oldView) {
+            newView.children = [];
+            newView.unmount();
+          }
           break;
         }
         case 'dom-update': {
@@ -646,8 +625,10 @@ export class View {
           const newView = newNode.view! as DOMView;
           const oldView = oldNode.view! as DOMView;
           patchView(oldView, newView);
-          newView.children = [];
-          newView.unmount();
+          if (newView !== oldView) {
+            newView.children = [];
+            newView.unmount();
+          }
           break;
         }
         case 'text': {
@@ -698,8 +679,7 @@ export class View {
 
   unmount() {
     this.events.emit('unmount_before');
-    this.latestPatchChildrenTask?.cancel();
-    this.latestPatchChildrenTask = null;
+    this.scheduler.dispose();
     this.anchor.parentNode?.removeChild(this.anchor);
     this.unmountChildren();
     this.events.emit('unmounted');
@@ -884,17 +864,13 @@ export class DOMView extends View {
   }
 
   private isFirstPropsUpdated = false;
-  private patchPropsTask = null as null | IdleTask<any>;
   protected updateProps(props: AnyRecord) {
     if (shallowEqual(props, this.props)) {
       return;
     }
     this.props = props;
     if (this.isFirstPropsUpdated) {
-      this.patchPropsTask?.cancel();
-      this.patchPropsTask = globalIdleScheduler.buildTask(() =>
-        this.patchProps(props)
-      );
+      this.scheduler.runTask('patch-task', () => this.patchProps(props));
     } else {
       this.patchProps(props);
       this.isFirstPropsUpdated = true;
@@ -902,8 +878,8 @@ export class DOMView extends View {
   }
 
   protected listeners = {} as Record<string, () => void>;
-  protected updateAttrTasks = {} as Record<string, IdleTask<any>>;
   protected firstPropsUpdated = false;
+  protected propsEffects = {} as Record<string, ReactiveEffectRunner>;
   protected patchProps(props: AnyRecord) {
     const element = this.elem;
     const updateAttribute = (key: string, value: any) => {
@@ -939,7 +915,8 @@ export class DOMView extends View {
         }
         this.listeners[eventName] = disposeEventHandler;
       } else {
-        this.effect(() => {
+        this.propsEffects[key]?.effect.stop();
+        this.propsEffects[key] = this.effect(() => {
           const element = this.elem;
           if (!(element instanceof Element)) {
             return;
@@ -947,17 +924,16 @@ export class DOMView extends View {
           const nextValue = unrefAttribute(value);
 
           setAttribute(element, key, nextValue);
-        }, 'update_before');
+        });
       }
     };
 
     for (const [key, value] of Object.entries(props)) {
       this.matchDirectives(key, value);
       if (this.firstPropsUpdated) {
-        this.updateAttrTasks[key]?.cancel();
-        this.updateAttrTasks[key] = globalIdleScheduler.buildTask(() => {
-          updateAttribute(key, value);
-        });
+        this.scheduler.runTask(`@props/${key}`, () =>
+          updateAttribute(key, value)
+        );
       } else {
         updateAttribute(key, value);
       }
@@ -1014,8 +990,6 @@ export class DOMView extends View {
   }
 
   unmount(): void {
-    this.patchPropsTask?.cancel();
-    this.patchPropsTask = null;
     this.elem.parentElement?.removeChild(this.elem);
     super.unmount();
   }
@@ -1453,12 +1427,14 @@ export function memoView(
     typeof getterOrRef === 'function' ? getterOrRef : () => unref(getterOrRef)
   );
   const view = new View();
-  createEffect(() => {
-    const nextChildren = render(unref(value));
-    view.patchChildren(
-      Array.isArray(nextChildren) ? nextChildren : [nextChildren]
-    );
-  });
+  view.zone(() => {
+    createEffect(() => {
+      const nextChildren = render(unref(value));
+      view.patchChildren(
+        Array.isArray(nextChildren) ? nextChildren : [nextChildren]
+      );
+    });
+  }, 'setup');
   return view.anchor;
 }
 

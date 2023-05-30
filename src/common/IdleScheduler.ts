@@ -9,6 +9,7 @@ export type IdleTask<T> = {
     result: any;
   };
 };
+
 type IdleTaskFunction<RET> = (deadline: { timeRemaining: () => number }) => RET;
 export class IdleScheduler {
   private frameDeadline: number;
@@ -118,6 +119,7 @@ export class IdleScheduler {
 
     const cancel = (): void => {
       isCancelled = true;
+      resolve(undefined);
       if (this.taskQueue.size <= /* a magic number => */ 5000) {
         this.taskQueue.remove(wrappedTask);
       }
@@ -134,3 +136,27 @@ export class IdleScheduler {
 }
 
 export const globalIdleScheduler = new IdleScheduler();
+
+export class UniqIdleScheduler {
+  tasks = new Map<string, IdleTask<any>>();
+
+  runTask<RET>(id: string, task: IdleTaskFunction<RET>) {
+    const wipTask = this.tasks.get(id);
+    if (wipTask) {
+      wipTask.cancel();
+    }
+    const processTask = globalIdleScheduler.buildTask(task);
+    this.tasks.set(id, processTask);
+    processTask.promise.finally(() => {
+      if (this.tasks.get(id) === processTask) {
+        this.tasks.delete(id);
+      }
+    });
+    return processTask;
+  }
+
+  dispose() {
+    this.tasks.forEach((task) => task.cancel());
+    this.tasks.clear();
+  }
+}
