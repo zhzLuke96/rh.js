@@ -13,6 +13,8 @@ type HTMLTemplateToken = {
     | 'value'
     | 'equal';
   value: string;
+
+  tpl_index?: number;
 };
 type TokenizerState = 'text' | 'start' | 'end_start' | 'tag' | 'value';
 
@@ -76,14 +78,11 @@ function tokenize(html: string, init_state = 'text' as TokenizerState) {
           char // Perform different processing according to the character
         ) {
           case '>': // If you encounter a right angle bracket
-            if (!buffer) {
-              state = 'text'; // If the buffer variable is not empty
-              // tokens.push({type: "tag_end", value: '>'});
-              break;
+            if (buffer.trim()) {
+              tokens.push({ type: 'tag', value: buffer.trim() }); // Add the buffer variable as a tag type token to the array
+              buffer = ''; // Empty the buffer variable
             }
-            tokens.push({ type: 'tag', value: buffer }); // Add the buffer variable as a tag type token to the array
-            buffer = ''; // Empty the buffer variable
-            state = 'text'; // Change the state to text type
+            state = 'text'; // If the buffer variable is not empty
             break;
           case '=': // If you encounter an equal sign
             if (buffer) {
@@ -104,7 +103,9 @@ function tokenize(html: string, init_state = 'text' as TokenizerState) {
             buffer = ''; // Empty the buffer variable
             break;
           case '/': {
-            tokens.push({ type: 'tag', value: buffer });
+            if (buffer.trim()) {
+              tokens.push({ type: 'tag', value: buffer.trim() });
+            }
             buffer = '';
             tokens.push({ type: 'end_start', value: '</' });
             state = 'end_start';
@@ -137,7 +138,7 @@ function tokenize(html: string, init_state = 'text' as TokenizerState) {
 }
 
 const tokenizeTemplate = (strings: TemplateStringsArray, ...values: any[]) => {
-  const all_tokens = [];
+  const all_tokens = [] as HTMLTemplateToken[];
 
   let state = 'text' as TokenizerState;
   for (let idx = 0; idx < strings.length; idx++) {
@@ -146,7 +147,7 @@ const tokenizeTemplate = (strings: TemplateStringsArray, ...values: any[]) => {
     const tokens = tokenize(string, state);
     if (tokens.length === 0) continue;
 
-    all_tokens.push(...tokens);
+    all_tokens.push(...tokens.map((x) => ({ ...x, tpl_index: idx })));
 
     if (!value) {
       continue;
@@ -158,6 +159,7 @@ const tokenizeTemplate = (strings: TemplateStringsArray, ...values: any[]) => {
         all_tokens.push({
           type: 'value',
           value,
+          tpl_index: idx,
         });
         state = 'tag';
         break;
@@ -166,6 +168,7 @@ const tokenizeTemplate = (strings: TemplateStringsArray, ...values: any[]) => {
         all_tokens.push({
           type: 'tag',
           value,
+          tpl_index: idx,
         });
         state = 'tag';
         break;
@@ -175,6 +178,7 @@ const tokenizeTemplate = (strings: TemplateStringsArray, ...values: any[]) => {
         all_tokens.push({
           type: 'text',
           value,
+          tpl_index: idx,
         });
         state = 'text';
         break;
@@ -190,7 +194,7 @@ const tokenizeTemplate = (strings: TemplateStringsArray, ...values: any[]) => {
 type HTMLTemplateNode = {
   tag: any;
   attributes: any;
-  children: HTMLTemplateNode[];
+  children: (HTMLTemplateNode | string)[];
 };
 
 function htmlRoot(strings: TemplateStringsArray, ...values: any[]) {
@@ -235,7 +239,12 @@ function htmlRoot(strings: TemplateStringsArray, ...values: any[]) {
           token.value !== '/' &&
           popNode?.tag !== token.value
         ) {
-          throw new Error(`Unexpected token ${token.value} at ${popNode?.tag}`);
+          const string = token.tpl_index && strings[token.tpl_index];
+          throw new Error(
+            `Unexpected token ${token.value} at ${
+              string ? `\`${string}\`}` : '[UNKNOWN]'
+            }`
+          );
         }
         break;
       }
@@ -247,6 +256,7 @@ function htmlRoot(strings: TemplateStringsArray, ...values: any[]) {
   return root;
 }
 
+const validTagNameRegex = /^[a-z][a-z0-9\-_]*$/;
 export const html = (strings: TemplateStringsArray, ...values: any[]) => {
   const root = htmlRoot(strings, ...values);
   const walk = (
@@ -256,6 +266,17 @@ export const html = (strings: TemplateStringsArray, ...values: any[]) => {
       return null;
     }
     if (typeof node === 'object' && node.attributes && node.children) {
+      if (typeof node.tag === 'string') {
+        if (!validTagNameRegex.test(node.tag)) {
+          const string =
+            (<any>node).tpl_index && strings[(<any>node).tpl_index];
+          throw new Error(
+            `Unexpected tag ${node.tag} at ${
+              string ? `\`${string}\`}` : '[UNKNOWN]'
+            }`
+          );
+        }
+      }
       return rh(node.tag, node.attributes, node.children.map(walk));
     }
     return node as any;
