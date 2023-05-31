@@ -95,3 +95,7 @@ _gen
 
 # local files
 __local_test__
+
+!benchmarks/**/*.html
+!benchmarks/**/*.js
+!benchmarks/**/*.css
