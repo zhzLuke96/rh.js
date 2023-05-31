@@ -1,4 +1,4 @@
-import { isRef, shallowRef, unref } from '@vue/reactivity';
+import { isRef, shallowRef, triggerRef, unref } from '@vue/reactivity';
 import {
   createEffect,
   createMemo,
@@ -18,7 +18,8 @@ export const For = <T>(
       item: T,
       index: number,
       array: T[],
-      flush: () => void
+      flush: () => void,
+      flushAll: () => void
     ) => InlineRenderResult
   ]
 ) => {
@@ -35,7 +36,22 @@ export const For = <T>(
       view: InlineRenderResult;
     }[]
   >([]);
-  const { runner: effectRunner } = createEffect(() => {
+  const rerender = (index: number) => {
+    const itemsValue = untrack(items);
+    const item = itemsValue[index];
+    itemsView.value[index] = {
+      item: deepClone(item),
+      view: render(
+        item,
+        index,
+        itemsValue,
+        () => rerender(index),
+        () => triggerRef(itemsView)
+      ),
+    };
+    triggerRef(itemsView);
+  };
+  createEffect(() => {
     const nextItemsView = [] as {
       item: T;
       view: InlineRenderResult;
@@ -51,7 +67,13 @@ export const For = <T>(
       }
       nextItemsView.push({
         item: deepClone(item),
-        view: render(item, index, itemsValue, () => effectRunner?.()),
+        view: render(
+          item,
+          index,
+          itemsValue,
+          () => rerender(index),
+          () => triggerRef(itemsView)
+        ),
       });
     }
     itemsView.value = nextItemsView;
