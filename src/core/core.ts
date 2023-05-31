@@ -551,20 +551,28 @@ export class View {
         }
       }
     });
+    const nextSiblingCache = {} as Record<number, Node | null>;
     const findNextSibling = (index: number): null | Node => {
       if (!this.anchor.parentNode) {
         return null;
       }
-      if (
-        nextChildren[index] &&
-        nextChildren[index]?.parentNode === this.anchor.parentNode
-      ) {
-        return nextChildren[index];
-      }
-      if (index >= nextChildren.length) {
+      if (this.children.length === 0) {
         return null;
       }
-      return findNextSibling(index + 1);
+      let current = index;
+      while (nextChildren.length > current) {
+        if (current in nextSiblingCache) {
+          return nextSiblingCache[current];
+        }
+        const child = nextChildren[current];
+        if (child && child?.parentNode === this.anchor.parentNode) {
+          nextSiblingCache[current] = child;
+          return child;
+        }
+        current++;
+      }
+      nextSiblingCache[current] = null;
+      return null;
     };
     for (const patch of patches) {
       switch (patch.type) {
@@ -1583,19 +1591,40 @@ export function memoView(
   getterOrRef: any,
   render: (data: any) => InlineRenderResult
 ): Node {
-  const value = createMemo(
-    typeof getterOrRef === 'function' ? getterOrRef : () => unref(getterOrRef)
-  );
-  const view = new View();
-  view.zone(() => {
-    createEffect(() => {
-      const nextChildren = render(unref(value));
-      view.updateChildren(
-        Array.isArray(nextChildren) ? nextChildren : [nextChildren]
-      );
+  return rh(() => {
+    const value = createMemo(
+      typeof getterOrRef === 'function' ? getterOrRef : () => unref(getterOrRef)
+    );
+    return () => render(unref(value));
+  });
+}
+
+type AsyncRender<ARGS extends any[]> = (
+  ...args: ARGS
+) => AsyncGenerator<InlineRenderResult, InlineRenderResult>;
+export function asyncView<ARGS extends any[]>(
+  asyncRender: AsyncRender<ARGS>,
+  ...args: ARGS
+) {
+  return rh(() => {
+    markHasOutsideEffect();
+
+    const viewRef = ref<InlineRenderResult>();
+    let isUnmounted = false;
+    skip(async () => {
+      const iter = asyncRender(...args);
+      for await (const view of iter) {
+        if (isUnmounted) {
+          return;
+        }
+        viewRef.value = view;
+        // default wait next tick
+        await new Promise((resolve) => setTimeout(resolve));
+      }
     });
-  }, 'setup');
-  return view.anchor;
+    onUnmounted(() => (isUnmounted = true));
+    return () => unref(viewRef);
+  });
 }
 
 type UnRefArray<T extends any[]> = {
