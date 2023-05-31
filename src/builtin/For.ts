@@ -35,7 +35,7 @@ export const For = <T>(
       view: InlineRenderResult;
     }[]
   >([]);
-  const effectRunner = createEffect(() => {
+  const { runner: effectRunner } = createEffect(() => {
     const nextItemsView = [] as {
       item: T;
       view: InlineRenderResult;

@@ -7,7 +7,7 @@ const unrefFn = (val: any) => unref(typeof val === 'function' ? val() : val);
  *
  * can be used `Ref<string>` or `() => string` in slot
  */
-export const raw = (strings: string[], ...values: any[]) =>
+export const raw = (strings: TemplateStringsArray, ...values: any[]) =>
   strings.reduce((output, string, index) => {
     output += string;
     if (index < values.length) {
@@ -16,7 +16,7 @@ export const raw = (strings: string[], ...values: any[]) =>
     return output;
   }, '');
 
-export const rawRef = (strings: string[], ...values: any[]) => {
+export const rawRef = (strings: TemplateStringsArray, ...values: any[]) => {
   const ref = computed(() => raw(strings, ...values));
   onUnmounted(() => ref.effect.stop());
   return ref;

@@ -1,5 +1,6 @@
 import {
   effect,
+  effectScope,
   isRef,
   pauseTracking,
   ReactiveEffectOptions,
@@ -62,12 +63,12 @@ function element2node(element: ReactiveViewElement): Node | null {
         },
         { lazy: false }
       );
-      view.patchChildren([text]);
+      view.updateChildren([text]);
     } else {
       runner = effect(
         () => {
           const viewChildren = element();
-          view.patchChildren(
+          view.updateChildren(
             Array.isArray(viewChildren) ? viewChildren : [viewChildren]
           );
         },
@@ -93,7 +94,7 @@ const patchView = (oldView: View, newView: View) => {
   };
   const patchComponentView = (oldView: View, newView: View) => {
     newView.initialize();
-    oldView.patchChildren(newView.children);
+    oldView.updateChildren(newView.children);
   };
   const aIsDOM = oldView instanceof DOMView;
   const bIsDOM = newView instanceof DOMView;
@@ -429,6 +430,8 @@ export class View {
 
   key?: string;
 
+  effectScope = effectScope(true);
+
   constructor(anchor = View.createAnchor() as Node) {
     this.anchor = anchor;
     View.dom2view.set(this.anchor, this);
@@ -451,10 +454,11 @@ export class View {
     if (this.initialized) {
       return;
     }
-    this.initialized = true;
     this.events.emit('init_before');
     this.events.emit('init');
     this.events.emit('init_after');
+
+    this.initialized = true;
   }
 
   mount(parentElement: Node, insertBefore?: Node | null) {
@@ -485,8 +489,7 @@ export class View {
     }
   }
 
-  private isFirstPatched = false;
-  patchChildren(elements: ReactiveViewElement[]) {
+  updateChildren(elements: ReactiveViewElement[]) {
     const newChildren = elements
       .flat(64)
       .map((element) => element2node(element))
@@ -507,13 +510,12 @@ export class View {
       this.children = nextChildren.filter(Boolean) as Node[];
     };
 
-    if (this.isFirstPatched) {
+    if (this.initialized) {
       // * async patch
       this.scheduler.runTask('patch-children', patchTask);
     } else {
       // * sync patch
       patchTask();
-      this.isFirstPatched = true;
     }
   }
 
@@ -667,15 +669,17 @@ export class View {
   }
 
   effect(fn: () => any, stopEvent = 'unmounted' as keyof ViewEvent) {
-    const runner = effect(fn, {
-      lazy: false,
+    return this.effectScope.run(() => {
+      const runner = effect(fn, {
+        lazy: false,
+      });
+      if (runner.effect.deps.length === 0) {
+        runner.effect.stop();
+      } else {
+        this.events.once(stopEvent, () => runner.effect.stop());
+      }
+      return runner;
     });
-    if (runner.effect.deps.length === 0) {
-      runner.effect.stop();
-    } else {
-      this.events.once(stopEvent, () => runner.effect.stop());
-    }
-    return runner;
   }
 
   unmount() {
@@ -686,6 +690,8 @@ export class View {
     this.events.emit('unmounted');
     this.events.emit('unmount_after');
     this.events.removeAllListeners();
+
+    this.effectScope.stop();
   }
 
   unmountChildren() {
@@ -809,6 +815,11 @@ const unrefAttribute = (value: any): any => {
   return unref(value);
 };
 
+type PropsDiffPatch = {
+  type: 'remove' | 'patch';
+  key: string;
+  value: any;
+};
 export class DOMView extends View {
   elem: Node;
   props = {} as AnyRecord;
@@ -833,11 +844,12 @@ export class DOMView extends View {
     if (this.initialized) {
       return;
     }
-    this.initialized = true;
     this.events.emit('init_before');
     this.events.emit('init');
     this.update(this.DOMProps, this.DOMChildren);
     this.events.emit('init_after');
+
+    this.initialized = true;
   }
 
   mount(parentElement: Node, insertBefore?: Node | null) {
@@ -853,9 +865,9 @@ export class DOMView extends View {
   update(props: AnyRecord, children: any[]) {
     this.events.emit('update_before');
     try {
-      this.patchChildren(children);
+      this.updateChildren(children);
       if (!shallowEqual(props, this.props)) {
-        this.patchProps(props);
+        this.updateProps(props);
         this.props = props;
       }
       this.events.emit('updated');
@@ -864,82 +876,120 @@ export class DOMView extends View {
     }
   }
 
-  private isFirstPropsUpdated = false;
   protected updateProps(props: AnyRecord) {
     if (shallowEqual(props, this.props)) {
       return;
     }
-    this.props = props;
-    if (this.isFirstPropsUpdated) {
-      this.scheduler.runTask('patch-task', () => this.patchProps(props));
+    const patches = this.diffProps(props, this.props);
+    if (patches.length === 0) {
+      return;
+    }
+    const patchTask = () => {
+      for (const patch of patches) {
+        const { type, key, value } = patch;
+        switch (type) {
+          case 'patch': {
+            this.patchProp(key, value);
+            this.props[key] = value;
+            break;
+          }
+          case 'remove': {
+            this.cleanupProp(key);
+            delete this.props[key];
+            break;
+          }
+        }
+      }
+    };
+    if (this.initialized) {
+      this.scheduler.runTask('patch-task', patchTask);
     } else {
-      this.patchProps(props);
-      this.isFirstPropsUpdated = true;
+      patchTask();
     }
   }
 
-  protected listeners = {} as Record<string, () => void>;
-  protected firstPropsUpdated = false;
-  protected propsEffects = {} as Record<string, ReactiveEffectRunner>;
-  protected patchProps(props: AnyRecord) {
-    const element = this.elem;
-    const updateAttribute = (key: string, value: any) => {
-      if (key.startsWith('$') || key.startsWith('_') || key === 'key') {
-        return;
-      }
-      if (key === 'ref') {
-        if (isRef(value)) {
-          value.value = element;
-        } else if (typeof value === 'function') {
-          value(element);
-        }
-        return;
-      }
-      if (!(element instanceof Element)) {
-        return;
-      }
-      if (key.startsWith('on')) {
-        const eventName = key.slice(2).toLowerCase();
-        element.addEventListener(eventName, value);
-
-        const removeHandler = () =>
-          element.removeEventListener(eventName, value);
-        this.events.once('unmounted', removeHandler);
-
-        const disposeEventHandler = () => {
-          this.events.off('unmounted', removeHandler);
-          element.removeEventListener(eventName, value);
-        };
-        const dispose = this.listeners[eventName];
-        if (dispose) {
-          dispose();
-        }
-        this.listeners[eventName] = disposeEventHandler;
-      } else {
-        this.propsEffects[key]?.effect.stop();
-        this.propsEffects[key] = this.effect(() => {
-          const element = this.elem;
-          if (!(element instanceof Element)) {
-            return;
-          }
-          const nextValue = unrefAttribute(value);
-
-          setAttribute(element, key, nextValue);
-        });
-      }
+  protected propsCleanups = {} as Record<string, () => void>;
+  protected addPropCleanup(key: string, cleanup: () => any) {
+    const prev_callback = this.propsCleanups[key];
+    this.propsCleanups[key] = () => {
+      prev_callback?.();
+      cleanup();
     };
+  }
+  protected cleanupProp(key: string) {
+    this.propsCleanups[key]?.();
+    delete this.propsCleanups[key];
+  }
 
-    for (const [key, value] of Object.entries(props)) {
-      this.matchDirectives(key, value);
-      if (this.firstPropsUpdated) {
-        this.scheduler.runTask(`@props/${key}`, () =>
-          updateAttribute(key, value)
-        );
-      } else {
-        updateAttribute(key, value);
-      }
+  protected patchProp(key: string, value: any) {
+    this.cleanupProp(key);
+
+    this.matchDirectives(key, value);
+    if (key.startsWith('$') || key.startsWith('_') || key === 'key') {
+      return;
     }
-    this.firstPropsUpdated = true;
+
+    const element = this.elem;
+    if (key === 'ref') {
+      if (isRef(value)) {
+        value.value = element;
+      } else if (typeof value === 'function') {
+        value(element);
+      }
+      return;
+    }
+    if (!(element instanceof Element)) {
+      return;
+    }
+    if (key.startsWith('on')) {
+      const eventName = key.slice(2).toLowerCase();
+      element.addEventListener(eventName, value);
+
+      const removeHandler = () => element.removeEventListener(eventName, value);
+      this.events.once('unmounted', removeHandler);
+
+      const disposeEventHandler = () => {
+        this.events.off('unmounted', removeHandler);
+        element.removeEventListener(eventName, value);
+      };
+      this.addPropCleanup(key, disposeEventHandler);
+    } else {
+      const runner = this.effect(() => {
+        const element = this.elem;
+        if (!(element instanceof Element)) {
+          return;
+        }
+        const nextValue = unrefAttribute(value);
+
+        setAttribute(element, key, nextValue);
+      });
+      this.addPropCleanup(key, () => runner?.effect.stop());
+    }
+  }
+
+  protected diffProps(newProps: AnyRecord, oldProps: AnyRecord) {
+    const patches = [] as PropsDiffPatch[];
+    Object.entries(newProps).forEach(([key, value]) => {
+      if (Object.is(oldProps[key], value)) {
+        return;
+      }
+      patches.push({
+        type: 'patch',
+        key,
+        value,
+      });
+    });
+    Object.entries(oldProps).forEach(([key, value]) => {
+      if (key in newProps) {
+        return;
+      }
+      patches.push({
+        type: 'remove',
+        key,
+        value,
+      });
+    });
+    return patches;
   }
 
   protected matchDirectives(key: string, value: any) {
@@ -950,7 +1000,7 @@ export class DOMView extends View {
     if (!directives) {
       return;
     }
-    const directive = directives[key];
+    const directive = directives[key] as DirectiveDefine;
     if (!directive) {
       return;
     }
@@ -958,19 +1008,34 @@ export class DOMView extends View {
     mounted &&
       this.events.once(
         'mounted',
-        () => this.zone(() => mounted(this.elem, value, this)),
+        () => {
+          this.effectScope.run(() => {
+            const cleanup = this.zone(() => mounted(this.elem, value, this));
+            cleanup && this.addPropCleanup(key, cleanup);
+          });
+        },
         'directive'
       );
     unmounted &&
       this.events.once(
         'unmounted',
-        () => this.zone(() => unmounted(this.elem, value, this)),
+        () => {
+          this.effectScope.run(() => {
+            const cleanup = this.zone(() => unmounted(this.elem, value, this));
+            cleanup && this.addPropCleanup(key, cleanup);
+          });
+        },
         'directive'
       );
     updated &&
       this.events.on(
         'updated',
-        () => this.zone(() => updated(this.elem, value, this)),
+        () => {
+          this.effectScope.run(() => {
+            const cleanup = this.zone(() => updated(this.elem, value, this));
+            cleanup && this.addPropCleanup(key, cleanup);
+          });
+        },
         'directive'
       );
   }
@@ -992,6 +1057,8 @@ export class DOMView extends View {
 
   unmount(): void {
     this.elem.parentElement?.removeChild(this.elem);
+    Object.values(this.propsCleanups).forEach((cb) => cb());
+    this.propsCleanups = {};
     super.unmount();
   }
 }
@@ -1014,8 +1081,10 @@ export class ViewComponent {
     this.view.is_container = true;
     this.view.events.once('unmounted', () => this.dispose());
     this.view.events.once('init_after', () => {
-      this.runner = effect(this.update.bind(this), {
-        lazy: false,
+      this.view.effectScope.run(() => {
+        this.runner = effect(this.update.bind(this), {
+          lazy: false,
+        });
       });
     });
 
@@ -1025,11 +1094,13 @@ export class ViewComponent {
   update() {
     this.view.events.emit('update_before');
     try {
-      const elements = this.view.zone(
-        () => this.render(this.props, this.state, this.children),
-        'render'
+      const elements = this.view.effectScope.run(() =>
+        this.view.zone(
+          () => this.render(this.props, this.state, this.children),
+          'render'
+        )
       );
-      this.view.patchChildren(Array.isArray(elements) ? elements : [elements]);
+      this.view.updateChildren(Array.isArray(elements) ? elements : [elements]);
       this.view.events.emit('updated');
     } catch (error) {
       setTimeout(() => {
@@ -1043,6 +1114,7 @@ export class ViewComponent {
   }
 
   dispose() {
+    // TODO use EffectScope to dispose
     this.runner?.effect.stop();
   }
 }
@@ -1186,13 +1258,15 @@ export function skip<T, ARGS extends any[]>(
 export const untrack = <T>(value: MaybeRefOrGetter<T>): T =>
   typeof value === 'function' ? skip(value as any) : (skip(unref, value) as T);
 
+type EventOff = () => any;
 export const onViewEvent = <Event extends keyof ViewEvent>(
   event: Event,
   fn: ViewEvent[Event],
   once = false
-) => {
+): EventOff => {
   const view = View.topView();
   view.events[once ? 'once' : 'on'](event, fn as any);
+  return () => view.events.off(event, fn as any);
 };
 const createOnEvent =
   <Event extends keyof ViewEvent>(event: Event, once = false) =>
@@ -1210,19 +1284,35 @@ export const onAfterUpdate = createOnEvent('update_after');
 export const onError = createOnEvent('error');
 export const onCatch = createOnEvent('throw');
 
-export const onCleanup = (callback: () => any) => {
+export const onCleanup = (callback: () => any): EventOff => {
   const view = View.topView();
   if (view.zoneFlag === 'render') {
-    view.events.once('update_before', callback);
+    const eventOff = () => {
+      view.events.off('update_before', handler);
+      view.events.off('unmounted', handler);
+    };
+    const handler = () => {
+      // only call once
+      eventOff();
+      callback();
+    };
+    view.events.once('update_before', handler);
+    view.events.once('unmounted', handler);
+    return eventOff;
   } else {
     view.events.once('unmounted', callback);
+    return () => view.events.off('unmounted', callback);
   }
 };
 
+export type EffectHandler = {
+  runner: ReactiveEffectRunner;
+  cleanup: () => void;
+};
 export const createEffect = (
   fn: (onCleanup: (callback: () => any) => any) => any,
   options?: ReactiveEffectOptions
-) => {
+): EffectHandler => {
   let cleanupCallback: any;
   const runner = effect(
     () => {
@@ -1235,11 +1325,15 @@ export const createEffect = (
       ...options,
     }
   );
-  onCleanup(() => {
+  let eventOff: EventOff | undefined;
+  const cleanup = () => {
+    eventOff?.();
     cleanupCallback?.();
+    cleanupCallback = undefined;
     runner.effect.stop();
-  });
-  return runner;
+  };
+  eventOff = onCleanup(cleanup);
+  return { runner, cleanup };
 };
 
 type StateSetter<T> = {
@@ -1262,17 +1356,17 @@ export function createWatcher<T>(
   targetRef: Ref<T>,
   callback: (value: T | undefined, prev: T | undefined) => any,
   options?: ReactiveEffectOptions
-): ReactiveEffectRunner;
+): EffectHandler;
 export function createWatcher<T>(
   getter: () => T,
   callback: (value: T, prev: T | undefined) => any,
   options?: ReactiveEffectOptions
-): ReactiveEffectRunner;
+): EffectHandler;
 export function createWatcher(
   getterOrRef: any,
   callback: (value: any, prev: any) => any,
   options?: ReactiveEffectOptions
-): ReactiveEffectRunner {
+): EffectHandler {
   let value: any;
   return createEffect(() => {
     const nextValue = isRef(getterOrRef) ? getterOrRef.value : getterOrRef();
@@ -1397,11 +1491,12 @@ export function createReducer<State, Action>(
   return [readonly(state), dispatch] as any;
 }
 
+export type DirectiveCleanup = () => any;
 export type DirectiveCallback = (
-  dom: HTMLElement,
+  node: Node,
   value: any,
   view: DOMView
-) => any;
+) => void | DirectiveCleanup;
 export type DirectiveDefine = {
   key: string;
   mounted?: DirectiveCallback;
@@ -1495,7 +1590,7 @@ export function memoView(
   view.zone(() => {
     createEffect(() => {
       const nextChildren = render(unref(value));
-      view.patchChildren(
+      view.updateChildren(
         Array.isArray(nextChildren) ? nextChildren : [nextChildren]
       );
     });
