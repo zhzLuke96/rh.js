@@ -3,8 +3,8 @@ import {
   markHasOutsideEffect,
   onUnmounted,
   rh,
-} from '../core/core';
-import { raw } from './raw';
+} from '../../../core/core';
+import { raw } from '../../raw';
 
 export const css = (strings: TemplateStringsArray, ...values: any[]) =>
   rh(() => {

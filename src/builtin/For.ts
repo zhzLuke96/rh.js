@@ -7,11 +7,20 @@ import {
   untrack,
 } from '../core/core';
 import { shallowEqual } from '../common/shallowEqual';
+import { clonePlainDeep } from '../common/clonePlainDeep';
 
-const deepClone = (x: any) => JSON.parse(JSON.stringify(x));
+const defaultNeedUpdate = (a: any, b: any) => !shallowEqual(a, b);
 
 export const For = <T>(
-  { each }: { each: MaybeRefOrGetter<T[]> },
+  {
+    each,
+    needUpdate = defaultNeedUpdate,
+    snapshotItem = clonePlainDeep,
+  }: {
+    each: MaybeRefOrGetter<T[]>;
+    needUpdate?: (data: T, prev: T) => boolean;
+    snapshotItem?: (data: T, index: number, array: T[]) => T;
+  },
   state: any,
   [render]: [
     (
@@ -30,7 +39,7 @@ export const For = <T>(
       ? (<any>each)()
       : each
   );
-  const itemsView = shallowRef<
+  const itemsViewRef = shallowRef<
     {
       item: T;
       view: InlineRenderResult;
@@ -39,17 +48,17 @@ export const For = <T>(
   const rerender = (index: number) => {
     const itemsValue = untrack(items);
     const item = itemsValue[index];
-    itemsView.value[index] = {
-      item: deepClone(item),
+    itemsViewRef.value[index] = {
+      item: snapshotItem(item, index, itemsValue),
       view: render(
         item,
         index,
         itemsValue,
         () => rerender(index),
-        () => triggerRef(itemsView)
+        () => triggerRef(itemsViewRef)
       ),
     };
-    triggerRef(itemsView);
+    triggerRef(itemsViewRef);
   };
   createEffect(() => {
     const nextItemsView = [] as {
@@ -59,24 +68,24 @@ export const For = <T>(
     const itemsValue = unref(items);
     for (let index = 0; index < itemsValue.length; index++) {
       const item = itemsValue[index];
-      const view = untrack(itemsView)[index];
+      const view = untrack(itemsViewRef)[index];
 
-      if (view && shallowEqual(item, view.item)) {
+      if (view && !needUpdate(item, view.item)) {
         nextItemsView.push(view);
         continue;
       }
       nextItemsView.push({
-        item: deepClone(item),
+        item: snapshotItem(item, index, itemsValue),
         view: render(
           item,
           index,
           itemsValue,
           () => rerender(index),
-          () => triggerRef(itemsView)
+          () => triggerRef(itemsViewRef)
         ),
       });
     }
-    itemsView.value = nextItemsView;
+    itemsViewRef.value = nextItemsView;
   });
-  return () => itemsView.value.map((x) => x.view);
+  return () => itemsViewRef.value.map((x) => x.view);
 };

@@ -1,4 +1,5 @@
 import {
+  DebuggerEvent,
   effect,
   effectScope,
   isRef,
@@ -10,15 +11,12 @@ import {
   Ref,
   resetTracking,
   shallowRef,
+  triggerRef,
   unref,
   UnwrapRef,
 } from '@vue/reactivity';
 import EventEmitter from 'eventemitter3';
-import {
-  globalIdleScheduler,
-  IdleTask,
-  UniqIdleScheduler,
-} from '../common/IdleScheduler';
+import { UniqIdleScheduler } from '../common/IdleScheduler';
 import { shallowEqual } from '../common/shallowEqual';
 
 export type MaybeRef<T = any> = T | Ref<T>;
@@ -375,6 +373,11 @@ export type ViewEvent = {
   update_after: () => any;
   error: (err: any) => any;
   throw: (value: any) => any;
+
+  // component events
+  render_stop: () => any;
+  render_tracked: (event: DebuggerEvent) => any;
+  render_triggered: (event: DebuggerEvent) => any;
 };
 
 export class View {
@@ -1092,6 +1095,10 @@ export class ViewComponent {
       this.view.effectScope.run(() => {
         this.runner = effect(this.update.bind(this), {
           lazy: false,
+          onStop: () => this.view.events.emit('render_stop'),
+          onTrack: (event) => this.view.events.emit('render_tracked', event),
+          onTrigger: (event) =>
+            this.view.events.emit('render_triggered', event),
         });
       });
     });
@@ -1122,7 +1129,6 @@ export class ViewComponent {
   }
 
   dispose() {
-    // TODO use EffectScope to dispose
     this.runner?.effect.stop();
   }
 }
@@ -1292,6 +1298,22 @@ export const onAfterUpdate = createOnEvent('update_after');
 export const onError = createOnEvent('error');
 export const onCatch = createOnEvent('throw');
 
+// component event
+export const onRenderStop = createOnEvent('render_stop');
+export const onRenderTracked = createOnEvent('render_tracked');
+export const onRenderTriggered = createOnEvent('render_triggered');
+
+export const createRenderTrigger = () => {
+  const view = View.topView();
+  const component = ViewComponent.view2component.get(view);
+  if (!component) {
+    throw new Error(
+      'No component found, please call createRenderTrigger in component setup function'
+    );
+  }
+  return () => component.runner();
+};
+
 export const onCleanup = (callback: () => any): EventOff => {
   const view = View.topView();
   if (view.zoneFlag === 'render') {
@@ -1344,20 +1366,40 @@ export const createEffect = (
   return { runner, cleanup };
 };
 
-type StateSetter<T> = {
+type StateMutator<T> = {
   (value: T): void;
-  (update: (x: T) => T): void;
+  (mutate: (x: T) => T): void;
 };
-export function createState<T>(initialState: T) {
-  const state = shallowRef(initialState);
-  const setState: StateSetter<T> = (valueOrUpdate: any) => {
-    if (typeof valueOrUpdate === 'function') {
-      state.value = valueOrUpdate(untrack(state));
-    } else {
-      state.value = valueOrUpdate;
+export function createState<T>(
+  initialState: T,
+  options?: {
+    equals?: false | ((a: T, b: T) => boolean);
+  }
+) {
+  const comparator = options?.equals;
+  const stateRef = shallowRef(initialState);
+  const mutator: StateMutator<T> = (valueOrMutate: any) => {
+    const currentValue = untrack(stateRef);
+    const nextValue =
+      typeof valueOrMutate === 'function'
+        ? valueOrMutate(currentValue)
+        : valueOrMutate;
+    if (comparator && comparator(currentValue, nextValue)) {
+      return;
     }
+    stateRef.value = nextValue;
+    triggerRef(stateRef);
   };
-  return [readonly(state), setState] as const;
+  return [readonly(stateRef), mutator] as const;
+}
+export function createSignal<T>(
+  initialValue: T,
+  options?: {
+    equals?: false | ((a: T, b: T) => boolean);
+  }
+) {
+  const [state, setSignal] = createState(initialValue, options);
+  return [() => unref(state), setSignal] as const;
 }
 
 export function createWatcher<T>(

@@ -33,6 +33,10 @@ export class IdleScheduler {
     };
   }
 
+  size() {
+    return this.taskQueue.size;
+  }
+
   private timeRemaining() {
     return Math.max(0, this.frameDeadline - performance.now());
   }
