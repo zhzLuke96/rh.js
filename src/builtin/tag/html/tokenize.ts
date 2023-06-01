@@ -127,7 +127,7 @@ export function tokenizeHTML(
           case '\n':
           case ' ':
           case '"':
-            transform('tag');
+            transform('attribute');
             break;
           case '/':
             transform('close_start');
@@ -190,6 +190,7 @@ export function tokenizeHTML(
               // If the buffer variable is not empty
               pushToken('attr', buffer.trim()); // Add the buffer variable as an attribute name type token to the array
             } else {
+              throwError();
             }
             pushToken('equal', char); // Add the equal sign as an equal type token to the array
             buffer = ''; // Empty the buffer variable

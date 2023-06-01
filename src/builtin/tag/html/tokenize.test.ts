@@ -486,4 +486,22 @@ describe('tokenizeHTMLTemplate', () => {
       { type: 'value', value: true },
     ]);
   });
+
+  it('should parse slot attribute and continue parse attribute', () => {
+    const onClick = () => {};
+    const result = tokenizeHTMLTemplate`<div onclick=${onClick} class="btn btn-primary">`;
+    expect(result).toEqual([
+      { type: 'tag', value: 'div', index: { string: 5, strings: 0 } },
+      { type: 'attr', value: 'onclick', index: { string: 13, strings: 0 } },
+      { type: 'equal', value: '=', index: { string: 13, strings: 0 } },
+      { type: 'value', value: onClick, index: { value: 0 } },
+      { type: 'attr', value: 'class', index: { string: 7, strings: 1 } },
+      { type: 'equal', value: '=', index: { string: 7, strings: 1 } },
+      {
+        type: 'value',
+        value: 'btn btn-primary',
+        index: { string: 24, strings: 1 },
+      },
+    ]);
+  });
 });

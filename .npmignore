@@ -40,3 +40,4 @@ prettier.config.js
 .node-version
 .editorconfig
 benchmarks/
+*.test.*

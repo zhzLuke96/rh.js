@@ -34,7 +34,8 @@
     "lint": "prettier src -c",
     "format": "prettier src --write",
     "prepack": "rm -rf dist && yarn run build && yarn run build-dts",
-    "release": "yarn run prepack && yarn publish --access public"
+    "release": "yarn run prepack && yarn publish --access public",
+    "test": "jest"
   },
   "devDependencies": {
     "@types/jest": "^29.5.2",
