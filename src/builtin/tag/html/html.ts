@@ -88,26 +88,36 @@ const createHTMLTagger =
         | boolean
         | null
         | void
-        | undefined
+        | undefined,
+      is_svg_dom = false
     ): InlineRenderResult => {
       if (node === undefined || node === null) {
         return null;
       }
-      if (typeof node === 'object' && node.attributes && node.children) {
-        if (typeof node.tag === 'string') {
-          if (!validTagNameRegex.test(node.tag)) {
-            const string =
-              (<any>node).tpl_index && strings[(<any>node).tpl_index];
-            throw new Error(
-              `Unexpected tag ${node.tag} at ${
-                string ? `\`${string}\`}` : '[UNKNOWN]'
-              }`
-            );
-          }
-        }
-        return rh(node.tag, node.attributes, node.children.map(walk));
+      if (typeof node !== 'object') {
+        return node;
       }
-      return node as any;
+      if (typeof node.tag === 'string') {
+        if (!validTagNameRegex.test(node.tag)) {
+          const string =
+            (<any>node).tpl_index && strings[(<any>node).tpl_index];
+          throw new Error(
+            `Unexpected tag ${node.tag} at ${
+              string ? `\`${string}\`}` : '[UNKNOWN]'
+            }`
+          );
+        }
+      }
+      const self_is_svg_dom = typeof node === 'object' && node.tag === 'svg';
+      const next_is_svg_dom = self_is_svg_dom || is_svg_dom;
+      const tag = next_is_svg_dom
+        ? document.createElementNS('http://www.w3.org/2000/svg', node.tag)
+        : node.tag;
+      return rh(
+        tag,
+        node.attributes,
+        node.children.map((node) => walk(node, next_is_svg_dom))
+      );
     };
     root.tag = rootComponent;
     return walk(root);

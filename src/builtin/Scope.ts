@@ -45,3 +45,8 @@ export const Scope: FC<ScopeProps> = (
   }
   return () => shadowHost;
 };
+
+export const getRootNode = (): DocumentOrShadowRoot & Node => {
+  const context = useContextProxy();
+  return context[symbols.STYLESHEET_ROOT] || document;
+};

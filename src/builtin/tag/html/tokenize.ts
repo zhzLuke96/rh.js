@@ -154,6 +154,7 @@ export function tokenizeHTML(
           case '=':
             throwError();
             break;
+          case '\n':
           case ' ': // If you encounter a space
             if (buffer.trim()) {
               // If the buffer variable is not empty
