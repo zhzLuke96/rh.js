@@ -1,3 +1,5 @@
+import { minifyHTML } from './minify';
+
 export type HTMLTemplateToken = {
   type:
     | 'text'
@@ -253,7 +255,7 @@ export const tokenizeHTMLTemplate = (
 
   let state = 'text' as TokenizerState;
   for (let idx = 0; idx < strings.length; idx++) {
-    const string = strings[idx];
+    const string = minifyHTML(strings[idx]);
     const value = values[idx];
     const tokens = tokenizeHTML(string, state);
     if (tokens.length === 0) continue;
