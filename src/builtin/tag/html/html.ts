@@ -1,7 +1,6 @@
 import { Component, InlineRenderResult, rh } from '../../../core/core';
 import { Fragment } from '../../Fragment';
 import { Scope } from '../../Scope';
-import { minifyHTML } from './minify';
 import { HTMLTemplateToken, tokenizeHTMLTemplate } from './tokenize';
 
 type HTMLTemplateNode = {

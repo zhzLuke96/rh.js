@@ -1,4 +1,8 @@
-import { tokenizeHTML, tokenizeHTMLTemplate } from './tokenize';
+import {
+  HTMLTemplateToken,
+  tokenizeHTML,
+  tokenizeHTMLTemplate,
+} from './tokenize';
 
 const removeIndex = (array: any[], trim = false) =>
   array.map((x) => {
@@ -8,6 +12,9 @@ const removeIndex = (array: any[], trim = false) =>
     }
     return x;
   });
+
+const toTokensArray = (tokens: HTMLTemplateToken[]) =>
+  tokens.map((x) => [x.type, x.value.trim() ? x.value : ' ']);
 
 describe('tokenize', () => {
   it('should tokenize a simple html tag', () => {
@@ -201,21 +208,26 @@ describe('tokenizeHTMLTemplate', () => {
         <p>Paragraph</p>
       </div>
     `;
-    expect(removeIndex(result)).toEqual([
-      { type: 'text', value: '\n      ' },
-      { type: 'tag', value: 'div' },
-      { type: 'text', value: '\n        ' },
-      { type: 'tag', value: 'h1' },
-      { type: 'text', value: 'Title' },
-      { type: 'tag_end', value: 'h1' },
-      { type: 'text', value: '\n        ' },
-      { type: 'tag', value: 'p' },
-      { type: 'text', value: 'Paragraph' },
-      { type: 'tag_end', value: 'p' },
-      { type: 'text', value: '\n      ' },
-      { type: 'tag_end', value: 'div' },
-      { type: 'text', value: '\n    ' },
-    ]);
+    expect(removeIndex(result, true)).toEqual(
+      removeIndex(
+        [
+          { type: 'text', value: '\n      ' },
+          { type: 'tag', value: 'div' },
+          { type: 'text', value: '\n        ' },
+          { type: 'tag', value: 'h1' },
+          { type: 'text', value: 'Title' },
+          { type: 'tag_end', value: 'h1' },
+          { type: 'text', value: '\n        ' },
+          { type: 'tag', value: 'p' },
+          { type: 'text', value: 'Paragraph' },
+          { type: 'tag_end', value: 'p' },
+          { type: 'text', value: '\n      ' },
+          { type: 'tag_end', value: 'div' },
+          { type: 'text', value: '\n    ' },
+        ],
+        true
+      )
+    );
   });
 
   it('should handle a mix of HTML tags and plain text with multiple template strings', () => {
@@ -223,17 +235,22 @@ describe('tokenizeHTMLTemplate', () => {
     <h1>${'Hello,'}</h1>
     <p>${'World!'}</p>
     `;
-    expect(removeIndex(result)).toEqual([
-      { type: 'text', value: '\n    ' },
-      { type: 'tag', value: 'h1' },
-      { type: 'text', value: 'Hello,' },
-      { type: 'tag_end', value: 'h1' },
-      { type: 'text', value: '\n    ' },
-      { type: 'tag', value: 'p' },
-      { type: 'text', value: 'World!' },
-      { type: 'tag_end', value: 'p' },
-      { type: 'text', value: '\n    ' },
-    ]);
+    expect(removeIndex(result, true)).toEqual(
+      removeIndex(
+        [
+          { type: 'text', value: '\n  ', index: { string: 4, strings: 0 } },
+          { type: 'tag', value: 'h1', index: { string: 7, strings: 0 } },
+          { type: 'text', value: 'Hello,', index: { value: 0 } },
+          { type: 'tag_end', value: 'h1', index: { string: 5, strings: 1 } },
+          { type: 'text', value: '\n  ', index: { string: 9, strings: 1 } },
+          { type: 'tag', value: 'p', index: { string: 11, strings: 1 } },
+          { type: 'text', value: 'World!', index: { value: 1 } },
+          { type: 'tag_end', value: 'p', index: { string: 4, strings: 2 } },
+          { type: 'text', value: '\n  ', index: { string: 7, strings: 2 } },
+        ],
+        true
+      )
+    );
   });
 
   it('should throw an error for invalid characters in assignment', () => {
@@ -388,54 +405,29 @@ describe('tokenizeHTMLTemplate', () => {
     const result = tokenizeHTMLTemplate`
       <div class="main">
         <!-- This is a comment -->
-        <h1>Welcome to my website!</h1>
+        <h1> Welcome to my website! </h1>
         <p>This is a paragraph.</p>
       </div>
     `;
-    expect(removeIndex(result, true)).toEqual(
-      removeIndex(
-        [
-          { type: 'text', value: '\n    ', index: { string: 6, strings: 0 } },
-          { type: 'tag', value: 'div', index: { string: 10, strings: 0 } },
-          { type: 'attr', value: 'class', index: { string: 16, strings: 0 } },
-          { type: 'equal', value: '=', index: { string: 16, strings: 0 } },
-          { type: 'value', value: 'main', index: { string: 22, strings: 0 } },
-          {
-            type: 'text',
-            value: '\n      ',
-            index: { string: 31, strings: 0 },
-          },
-          {
-            type: 'text',
-            value: '\n      ',
-            index: { string: 64, strings: 0 },
-          },
-          { type: 'tag', value: 'h1', index: { string: 67, strings: 0 } },
-          {
-            type: 'text',
-            value: 'Welcome to my website!',
-            index: { string: 90, strings: 0 },
-          },
-          { type: 'tag_end', value: 'h1', index: { string: 94, strings: 0 } },
-          {
-            type: 'text',
-            value: '\n      ',
-            index: { string: 102, strings: 0 },
-          },
-          { type: 'tag', value: 'p', index: { string: 104, strings: 0 } },
-          {
-            type: 'text',
-            value: 'This is a paragraph.',
-            index: { string: 125, strings: 0 },
-          },
-          { type: 'tag_end', value: 'p', index: { string: 128, strings: 0 } },
-          { type: 'text', value: '\n    ', index: { string: 134, strings: 0 } },
-          { type: 'tag_end', value: 'div', index: { string: 139, strings: 0 } },
-          { type: 'text', value: '\n  ', index: { string: 142, strings: 0 } },
-        ],
-        true
-      )
-    );
+    expect(toTokensArray(result)).toEqual([
+      ['text', ' '],
+      ['tag', 'div'],
+      ['attr', 'class'],
+      ['equal', '='],
+      ['value', 'main'],
+      ['text', ' '],
+      ['text', ' '],
+      ['tag', 'h1'],
+      ['text', ' Welcome to my website! '],
+      ['tag_end', 'h1'],
+      ['text', ' '],
+      ['tag', 'p'],
+      ['text', 'This is a paragraph.'],
+      ['tag_end', 'p'],
+      ['text', ' '],
+      ['tag_end', 'div'],
+      ['text', ' '],
+    ]);
   });
 
   it('should ignore html comment, with incomplete comment', () => {
@@ -502,6 +494,29 @@ describe('tokenizeHTMLTemplate', () => {
         value: 'btn btn-primary',
         index: { string: 24, strings: 1 },
       },
+    ]);
+  });
+
+  it('should be compatible with templates with a newline after the tag', () => {
+    const result = tokenizeHTMLTemplate`<div\n></div\n>`;
+    expect(toTokensArray(result)).toEqual([
+      ['tag', 'div'],
+      ['tag_end', 'div'],
+    ]);
+  });
+
+  it('should be compatible with templates with a newline after the tag, also compatible in nested dom trees', () => {
+    const result = tokenizeHTMLTemplate`<div\n>link: <a href="example.com">example</a \n\n\n></div\n>`;
+    expect(toTokensArray(result)).toEqual([
+      ['tag', 'div'],
+      ['text', 'link: '],
+      ['tag', 'a'],
+      ['attr', 'href'],
+      ['equal', '='],
+      ['value', 'example.com'],
+      ['text', 'example'],
+      ['tag_end', 'a'],
+      ['tag_end', 'div'],
     ]);
   });
 });

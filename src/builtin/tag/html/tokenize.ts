@@ -1,5 +1,3 @@
-import { minifyHTML } from './minify';
-
 export type HTMLTemplateToken = {
   type:
     | 'text'
@@ -120,8 +118,9 @@ export function tokenizeHTML(
           pushToken('tag_end', buffer);
           buffer = '';
           transform('text');
-        } else {
-          buffer += char; // Add the character to the buffer variable
+        } else if (char !== ' ' && char !== '\n' && char !== '\t') {
+          // ignore whitespace characters
+          buffer += char;
         }
         break;
       case 'value_done':
@@ -255,7 +254,7 @@ export const tokenizeHTMLTemplate = (
 
   let state = 'text' as TokenizerState;
   for (let idx = 0; idx < strings.length; idx++) {
-    const string = minifyHTML(strings[idx]);
+    const string = strings[idx];
     const value = values[idx];
     const tokens = tokenizeHTML(string, state);
     if (tokens.length === 0) continue;
