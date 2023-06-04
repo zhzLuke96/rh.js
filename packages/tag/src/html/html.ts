@@ -2,11 +2,15 @@ import { Component, InlineRenderResult, rh } from "@rhjs/core";
 import { Fragment, Scope } from "@rhjs/builtin";
 import { HTMLTemplateToken, tokenizeHTMLTemplate } from "./tokenize";
 
+const isTemplateNode = Symbol("isTemplateNode");
 type HTMLTemplateNode = {
   tag: any;
   attributes: any;
   children: (HTMLTemplateNode | string)[];
+  [isTemplateNode]: true;
 };
+const is_template_node = (x: any): x is HTMLTemplateNode =>
+  x && typeof x === "object" && x[isTemplateNode];
 
 function throwTokenError(token: HTMLTemplateToken, should: string): never {
   const { value, type, index } = token;
@@ -25,6 +29,7 @@ function htmlRoot(strings: TemplateStringsArray, ...values: any[]) {
     tag: "ROOT",
     attributes: {},
     children: [],
+    [isTemplateNode]: true,
   } as HTMLTemplateNode;
   const stack = [root];
   const current = () => stack[stack.length - 1];
@@ -41,6 +46,7 @@ function htmlRoot(strings: TemplateStringsArray, ...values: any[]) {
           tag: value,
           attributes: {},
           children: [],
+          [isTemplateNode]: true as const,
         };
         node.children.push(child);
         stack.push(child);
@@ -94,10 +100,7 @@ const createHTMLTagger =
       if (node === undefined || node === null) {
         return null;
       }
-      if (node instanceof Node) {
-        return node;
-      }
-      if (typeof node !== "object") {
+      if (!is_template_node(node)) {
         return node;
       }
       if (typeof node.tag === "string") {
