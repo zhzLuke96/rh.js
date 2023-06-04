@@ -42,17 +42,24 @@
 </script>
 <div id="app"></div>
 <script type="module">
-  import {mount, createState} from "@rhjs/core";
-  import {html} from "@rhjs/tag";
+  import { mount, createState } from "@rhjs/core";
+  import { html } from "@rhjs/tag";
 
   const [count, setCount] = createState(0);
-  
-  mount('#app', html`
-    <h1>Counter</h1>
-    <button onclick=${() => setCount(c => c + 1)}>${count}</button>
-  `);
+
+  mount(
+    "#app",
+    html`
+      <h1>Hello world, @rhjs 🎉</h1>
+      <button class="button-85" onclick=${() => setCount((c) => c + 1)}>
+        count: ${count}
+      </button>
+    `
+  );
 </script>
 ```
+
+> online in [codesandbox](https://codesandbox.io/s/vibrant-microservice-rw3kv4?file=/src/index.js)
 
 # More @Rhjs Details
 - demos page: https://zhzluke96.github.io/rhjs-demos/#demo
