@@ -1,7 +1,7 @@
 {
   "name": "@rhjs/builtin",
   "amdName": "rh-builtin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
@@ -32,10 +32,6 @@
   },
   "author": "",
   "license": "ISC",
-  "engines": {
-    "npm": "!use pnpm",
-    "yarn": "!use pnpm"
-  },
   "dependencies": {
     "@rhjs/core": "workspace:^"
   },

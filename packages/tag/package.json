@@ -1,7 +1,7 @@
 {
   "name": "@rhjs/tag",
   "amdName": "rh-tag",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
@@ -33,10 +33,6 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "access": "public"
-  },
-  "engines": {
-    "npm": "!use pnpm",
-    "yarn": "!use pnpm"
   },
   "devDependencies": {
     "@types/jest": "^29.5.2",
