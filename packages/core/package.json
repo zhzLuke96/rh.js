@@ -2,7 +2,7 @@
   "name": "@rhjs/core",
   "amdName": "rh",
   "description": "a lightweight / reactivity web framework",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
   "module": "dist/main.module.mjs",
@@ -67,8 +67,5 @@
   "bugs": {
     "url": "https://github.com/zhzLuke96/rh.js/issues"
   },
-  "homepage": "https://github.com/zhzLuke96/rh.js#readme",
-  "engines": {
-    "npm": "!use yarn"
-  }
+  "homepage": "https://github.com/zhzLuke96/rh.js#readme"
 }

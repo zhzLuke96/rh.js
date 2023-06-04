@@ -1,5 +1,6 @@
 {
   "name": "@rhjs/rh",
+  "amdName": "rh",
   "description": "a lightweight / reactivity web framework",
   "version": "0.2.2",
   "source": "src/main.ts",
