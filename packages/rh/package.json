@@ -1,0 +1,63 @@
+{
+  "name": "@rhjs/rh",
+  "description": "a lightweight / reactivity web framework",
+  "version": "0.2.1",
+  "source": "src/main.ts",
+  "main": "dist/main.umd.js",
+  "module": "dist/main.module.mjs",
+  "unpkg": "dist/main.umd.js",
+  "types": "./dist/main.d.ts",
+  "exports": {
+    "types": "./dist/main.d.ts",
+    "require": "./dist/main.js",
+    "default": "./dist/main.modern.mjs"
+  },
+  "keywords": [
+    "typescript",
+    "framework",
+    "reactivity",
+    "web",
+    "lightweight"
+  ],
+  "files": [
+    "dist/**.js*",
+    "dist/**.mjs*",
+    "dist/**/*.ts",
+    "types/**/*.ts"
+  ],
+  "scripts": {
+    "build": "microbundle --external none --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
+    "watch": "microbundle watch --external none --define process.env.NODE_ENV=development,PKG_VERSION=$npm_package_version --compress false",
+    "dev": "rm -rf dist && pnpm watch",
+    "start": "pnpm build",
+    "lint": "prettier src -c",
+    "format": "prettier src --write",
+    "prepack": "rm -rf dist && pnpm run build",
+    "release": "pnpm run prepack && pnpm publish --access public"
+  },
+  "devDependencies": {
+    "microbundle": "^0.15.1"
+  },
+  "prettier": {
+    "singleQuote": true
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhzLuke96/rh.js.git"
+  },
+  "author": "zhzluke96",
+  "bugs": {
+    "url": "https://github.com/zhzLuke96/rh.js/issues"
+  },
+  "homepage": "https://github.com/zhzLuke96/rh.js#readme",
+  "dependencies": {
+    "@rhjs/builtin": "workspace:^",
+    "@rhjs/core": "workspace:^",
+    "@rhjs/tag": "workspace:^"
+  }
+}

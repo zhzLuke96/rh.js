@@ -11,6 +11,16 @@
     <title>Rh.js benchmarks - big table</title>
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./demo.css" />
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@rhjs/core": "../../packages/core/dist/main.module.mjs",
+          "@rhjs/builtin": "../../packages/builtin/dist/main.module.mjs",
+          "@rhjs/tag": "../../packages/tag/dist/main.module.mjs"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>
@@ -23,45 +33,44 @@
         createMemo,
         unref,
         untrack,
-        text,
         depend,
         createWatcher,
-        Fragment,
         memoView,
-        For,
-      } from '../../dist/main.module.mjs';
+      } from "@rhjs/core";
+      import { Fragment, For } from "@rhjs/builtin";
+      import { text } from "@rhjs/tag";
 
       var ROWS = 1000;
       var COLS = 10;
 
       function generateGrid(rowCount, columnCount) {
         var valuePoints = [
-          'Daenerys',
-          'Jon',
-          'Sansa',
-          'Arya',
-          'Stannis',
-          'Gregor',
-          'Tyrion',
-          'Theon',
-          'Joffrey',
-          'Ramsay',
-          'Cersei',
-          'Bran',
-          'Margaery',
-          'Melisandre',
-          'Daario',
-          'Jamie',
-          'Eddard',
-          'Myrcella',
-          'Robb',
-          'Jorah',
-          'Petyr',
-          'Tommen',
-          'Sandor',
-          'Oberyn',
-          'Drogo',
-          'Ygritte',
+          "Daenerys",
+          "Jon",
+          "Sansa",
+          "Arya",
+          "Stannis",
+          "Gregor",
+          "Tyrion",
+          "Theon",
+          "Joffrey",
+          "Ramsay",
+          "Cersei",
+          "Bran",
+          "Margaery",
+          "Melisandre",
+          "Daario",
+          "Jamie",
+          "Eddard",
+          "Myrcella",
+          "Robb",
+          "Jorah",
+          "Petyr",
+          "Tommen",
+          "Sandor",
+          "Oberyn",
+          "Drogo",
+          "Ygritte",
         ];
         var valueIndex = 0;
         var grid = [];
@@ -73,7 +82,7 @@
           };
           for (var c = 0; c < columnCount; c++) {
             row.items.push({
-              id: r + '-' + c,
+              id: r + "-" + c,
               value: valuePoints[valueIndex],
             });
             if (++valueIndex >= valuePoints.length) {
@@ -85,15 +94,15 @@
 
         return grid;
       }
-      const msg = ref('');
+      const msg = ref("");
       const profileCallback = (name, callback) => {
         console.profile(name);
         var timestamp = window.performance.now();
-        const retMsg = callback() || '';
+        const retMsg = callback() || "";
         setTimeout(function () {
           msg.value =
             retMsg +
-            `${retMsg ? ',' : ''}${name} took: ${(
+            `${retMsg ? "," : ""}${name} took: ${(
               window.performance.now() - timestamp
             ).toFixed(2)} ms`;
           console.profileEnd(name);
@@ -101,7 +110,7 @@
       };
 
       const AppBody = () => {
-        const filter = ref('');
+        const filter = ref("");
         const grid = ref(generateGrid(ROWS, COLS));
 
         const matches = (item) =>
@@ -124,32 +133,32 @@
         });
 
         const unmount = () =>
-          profileCallback('unmount', () => {
+          profileCallback("unmount", () => {
             grid.value = [];
           });
 
         const rerender = () =>
-          profileCallback('rerender', () => {
+          profileCallback("rerender", () => {
             var next_grid = generateGrid(ROWS, COLS);
             grid.value = next_grid;
           });
 
         const nonOptimizedTableRender = () =>
           rh(
-            'table',
+            "table",
             {
-              width: '100%',
-              cellspacing: '2',
+              width: "100%",
+              cellspacing: "2",
             },
             ...unref(grid).map((row) =>
               rh(
-                'tr',
+                "tr",
                 {},
-                rh('th', {}, row.id),
+                rh("th", {}, row.id),
                 ...unref(row.items).map((item) =>
                   rh(
-                    'td',
-                    { class: () => `item ${matches(item) ? '' : 'hidden'}` },
+                    "td",
+                    { class: () => `item ${matches(item) ? "" : "hidden"}` },
                     item.value
                   )
                 )
@@ -159,10 +168,10 @@
 
         const optimizedTableRender = () =>
           rh(
-            'table',
+            "table",
             {
-              width: '100%',
-              cellspacing: '2',
+              width: "100%",
+              cellspacing: "2",
             },
             rh(
               For,
@@ -171,9 +180,9 @@
               },
               (row) =>
                 rh(
-                  'tr',
+                  "tr",
                   { key: row.id },
-                  rh('th', {}, row.id),
+                  rh("th", {}, row.id),
                   rh(
                     For,
                     {
@@ -181,10 +190,10 @@
                     },
                     (item) =>
                       rh(
-                        'td',
+                        "td",
                         {
                           key: item.id,
-                          class: () => `item ${matches(item) ? '' : 'hidden'}`,
+                          class: () => `item ${matches(item) ? "" : "hidden"}`,
                         },
                         item.value
                       )
@@ -195,20 +204,20 @@
 
         const optimizedTableRender2 = () =>
           rh(
-            'table',
+            "table",
             {
-              width: '100%',
-              cellspacing: '2',
+              width: "100%",
+              cellspacing: "2",
             },
             memoView(grid, (rows) =>
               rows.map((row) =>
-                rh('tr', { key: row.id }, rh('th', {}, row.id), () =>
+                rh("tr", { key: row.id }, rh("th", {}, row.id), () =>
                   row.items.map((item) =>
                     rh(
-                      'td',
+                      "td",
                       {
                         key: item.id,
-                        class: () => `item ${matches(item) ? '' : 'hidden'}`,
+                        class: () => `item ${matches(item) ? "" : "hidden"}`,
                       },
                       item.value
                     )
@@ -221,20 +230,20 @@
         // only by key
         const optimizedTableRender3 = () =>
           rh(
-            'table',
+            "table",
             {
-              width: '100%',
-              cellspacing: '2',
+              width: "100%",
+              cellspacing: "2",
             },
             () =>
               unref(grid).map((row) =>
-                rh('tr', { key: row.id }, rh('th', {}, row.id), () =>
+                rh("tr", { key: row.id }, rh("th", {}, row.id), () =>
                   unref(row.items).map((item) =>
                     rh(
-                      'td',
+                      "td",
                       {
                         key: item.id,
-                        class: () => `item ${matches(item) ? '' : 'hidden'}`,
+                        class: () => `item ${matches(item) ? "" : "hidden"}`,
                       },
                       item.value
                     )
@@ -243,97 +252,97 @@
               )
           );
 
-        const optimizedType = ref('optimized-For');
+        const optimizedType = ref("optimized-For");
         const tableRender = shallowRef(optimizedTableRender);
 
         const dataUnmounted = createMemo(() => unref(grid).length === 0);
 
         return () =>
           rh(
-            'div',
+            "div",
             {},
-            rh('p', {}, rh('span', {}, text`${ROWS} x ${COLS}, ${msg}`)),
+            rh("p", {}, rh("span", {}, text`${ROWS} x ${COLS}, ${msg}`)),
             rh(
-              'p',
+              "p",
               {},
               rh(
-                'button',
+                "button",
                 { disabled: () => unref(dataUnmounted), onclick: unmount },
-                'Unmount'
+                "Unmount"
               ),
-              rh('button', { onclick: rerender }, 'Rerender'),
-              rh('br'),
+              rh("button", { onclick: rerender }, "Rerender"),
+              rh("br"),
               rh(
-                'button',
+                "button",
                 {
-                  disabled: () => unref(optimizedType) === 'none',
+                  disabled: () => unref(optimizedType) === "none",
                   onclick: () => {
-                    profileCallback('now, switched to none-optimized', () => {
+                    profileCallback("now, switched to none-optimized", () => {
                       tableRender.value = nonOptimizedTableRender;
-                      optimizedType.value = 'none';
+                      optimizedType.value = "none";
                     });
                   },
                 },
-                'disable optimized'
+                "disable optimized"
               ),
               rh(
-                'button',
+                "button",
                 {
-                  disabled: () => unref(optimizedType) === 'optimized-For',
+                  disabled: () => unref(optimizedType) === "optimized-For",
                   onclick: () => {
-                    profileCallback('now, switched to optimized-For', () => {
+                    profileCallback("now, switched to optimized-For", () => {
                       tableRender.value = optimizedTableRender;
-                      optimizedType.value = 'optimized-For';
+                      optimizedType.value = "optimized-For";
                     });
                   },
                 },
-                'use optimized-For'
+                "use optimized-For"
               ),
               rh(
-                'button',
+                "button",
                 {
-                  disabled: () => unref(optimizedType) === 'optimized-memoView',
+                  disabled: () => unref(optimizedType) === "optimized-memoView",
                   onclick: () => {
                     profileCallback(
-                      'now, switched to optimized-memoView',
+                      "now, switched to optimized-memoView",
                       () => {
                         tableRender.value = optimizedTableRender2;
-                        optimizedType.value = 'optimized-memoView';
+                        optimizedType.value = "optimized-memoView";
                       }
                     );
                   },
                 },
-                'use optimized-memoView'
+                "use optimized-memoView"
               ),
               rh(
-                'button',
+                "button",
                 {
-                  disabled: () => unref(optimizedType) === 'optimized-keyed',
+                  disabled: () => unref(optimizedType) === "optimized-keyed",
                   onclick: () => {
-                    profileCallback('now, switched to optimized-keyed', () => {
+                    profileCallback("now, switched to optimized-keyed", () => {
                       tableRender.value = optimizedTableRender3;
-                      optimizedType.value = 'optimized-keyed';
+                      optimizedType.value = "optimized-keyed";
                     });
                   },
                 },
-                'use optimized-keyed'
+                "use optimized-keyed"
               )
             ),
-            rh('p', {}, 'now optimize type: ', optimizedType),
+            rh("p", {}, "now optimize type: ", optimizedType),
             rh(
-              'form',
+              "form",
               {},
-              rh('strong', {}, 'Filter Data'),
-              rh('input', {
-                type: 'text',
+              rh("strong", {}, "Filter Data"),
+              rh("input", {
+                type: "text",
                 value: filter,
                 oninput: (ev) => (filter.value = ev.target.value),
               }),
               rh(
-                'span',
-                { class: { '--hidden': () => !filter.value } },
+                "span",
+                { class: { "--hidden": () => !filter.value } },
                 `Filtering `,
-                rh('strong', {}, filter),
+                rh("strong", {}, filter),
                 text` over ${ROWS * COLS} data points, ${visibleCount} found`
               )
             ),
@@ -344,27 +353,27 @@
       const App = () => {
         return () =>
           rh(
-            'div',
+            "div",
             {},
-            rh('h1', {}, 'Rendering Dynamic Big Table'),
+            rh("h1", {}, "Rendering Dynamic Big Table"),
             rh(
-              'p',
+              "p",
               {},
-              'Reference:',
+              "Reference:",
               rh(
-                'a',
+                "a",
                 {
-                  href: 'http://insin.github.io/ui-lib-samples/large-datasets/index.html',
+                  href: "http://insin.github.io/ui-lib-samples/large-datasets/index.html",
                 },
-                'insin/ui-lib-samples/large-datasets'
+                "insin/ui-lib-samples/large-datasets"
               )
             ),
             rh(AppBody)
           );
       };
 
-      profileCallback('mount', () => {
-        mount('#app', App);
+      profileCallback("mount", () => {
+        mount("#app", App);
       });
     </script>
   </body>
