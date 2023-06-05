@@ -1,7 +1,7 @@
 {
   "name": "@rhjs/builtin",
   "amdName": "rh-builtin",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
