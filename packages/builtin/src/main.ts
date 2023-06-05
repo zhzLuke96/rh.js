@@ -6,3 +6,5 @@ export * from "./Suspense";
 export * from "./Scope";
 export * from "./For";
 export * from "./lazy";
+
+export * from "./directives";

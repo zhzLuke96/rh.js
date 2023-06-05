@@ -1,0 +1,1 @@
+export { styleDirective } from "./style";
