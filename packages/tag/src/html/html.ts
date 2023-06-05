@@ -82,9 +82,22 @@ function htmlRoot(strings: TemplateStringsArray, ...values: any[]) {
 
 const validTagNameRegex = /^[a-z][a-z0-9\-_]*$/;
 const createHTMLTagger =
-  (rootComponent: Component) =>
+  (rootComponent: Component, tagMapping: Record<string, any> = {}) =>
   (strings: TemplateStringsArray, ...values: any[]) => {
     const root = htmlRoot(strings, ...values);
+    const buildTag = (node: HTMLTemplateNode, is_svg_dom = false) => {
+      if (typeof node.tag !== "string") {
+        return node.tag;
+      }
+      const mapping = tagMapping[node.tag];
+      if (mapping) {
+        return mapping;
+      }
+      if (is_svg_dom) {
+        return document.createElementNS("http://www.w3.org/2000/svg", node.tag);
+      }
+      return node.tag;
+    };
     const walk = (
       node:
         | HTMLTemplateNode
@@ -116,9 +129,7 @@ const createHTMLTagger =
       }
       const self_is_svg_dom = typeof node === "object" && node.tag === "svg";
       const next_is_svg_dom = self_is_svg_dom || is_svg_dom;
-      const tag = next_is_svg_dom
-        ? document.createElementNS("http://www.w3.org/2000/svg", node.tag)
-        : node.tag;
+      const tag = buildTag(node, next_is_svg_dom);
       return rh(
         tag,
         node.attributes,
@@ -129,10 +140,15 @@ const createHTMLTagger =
     return walk(root);
   };
 
+const mapping = (tagMapping: Record<string, any>, rootTag: any = Fragment) =>
+  createHTMLTagger(rootTag, tagMapping);
+
 const fragmentHTML = createHTMLTagger(Fragment);
 const scopeHTML = createHTMLTagger(Scope);
 
 export const html = fragmentHTML as typeof fragmentHTML & {
   scoped: typeof scopeHTML;
+  mapping: typeof mapping;
 };
 html.scoped = scopeHTML;
+html.mapping = mapping;

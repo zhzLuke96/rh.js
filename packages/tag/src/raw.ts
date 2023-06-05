@@ -1,4 +1,4 @@
-import { computed, unref, onUnmounted } from "@rhjs/core";
+import { unref, createMemo } from "@rhjs/core";
 
 const unrefFn = (val: any) => unref(typeof val === "function" ? val() : val);
 /**
@@ -15,8 +15,6 @@ export const raw = (strings: TemplateStringsArray, ...values: any[]) =>
     return output;
   }, "");
 
-export const rawRef = (strings: TemplateStringsArray, ...values: any[]) => {
-  const ref = computed(() => raw(strings, ...values));
-  onUnmounted(() => ref.effect.stop());
-  return ref;
+export const rawMemo = (strings: TemplateStringsArray, ...values: any[]) => {
+  return createMemo(() => raw(strings, ...values));
 };
