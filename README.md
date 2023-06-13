@@ -20,7 +20,7 @@
 - [rh.js](#rhjs)
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
-- [More @Rhjs Details](#more-rhjs-details)
+- [@Rhjs online](#rhjs-online)
 - [Related Efforts](#related-efforts)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -61,9 +61,9 @@
 
 > online in [codesandbox](https://codesandbox.io/s/vibrant-microservice-rw3kv4?file=/src/index.js)
 
-# More @Rhjs Details
-- demos page: https://zhzluke96.github.io/rhjs-demos/#demo
+# @Rhjs online
 - playground: https://zhzluke96.github.io/rhjs-playground/
+- more demo come soon...
 
 # Related Efforts
 
