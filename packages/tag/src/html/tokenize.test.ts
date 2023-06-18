@@ -13,11 +13,10 @@ const removeIndex = (array: any[], trim = false) =>
     return x;
   });
 
+const minifyText = (value: any) =>
+  typeof value !== "string" || value.trim() ? value : " ";
 const toTokensArray = (tokens: HTMLTemplateToken[]) =>
-  tokens.map((x) => [
-    x.type,
-    typeof x.value !== "string" || x.value.trim() ? x.value : " ",
-  ]);
+  tokens.map((x) => [x.type, minifyText(x.value)]);
 
 describe("tokenize", () => {
   it("should tokenize a simple html tag", () => {
@@ -534,5 +533,95 @@ describe("tokenizeHTMLTemplate", () => {
       ["text", 1],
       ["tag_end", "button"],
     ]);
+  });
+
+  it("should be resolve svg node", () => {
+    const result = tokenizeHTMLTemplate`
+    <svg viewBox="0 0 47 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        fill="#333"
+        d="M23.5"
+      />
+      <defs>
+        <linearGradient
+          id="%%GRADIENT_ID%%"
+          x1="33.999"
+          x2="1"
+          y1="16.181"
+          y2="16.181"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stop-color="%%GRADIENT_TO%%" />
+          <stop offset="1" stop-color="%%GRADIENT_FROM%%" />
+        </linearGradient>
+      </defs>
+    </svg>`;
+    expect(toTokensArray(result)).toEqual(
+      [
+        ["text", "\n  "],
+        ["tag", "svg"],
+        ["attr", "viewBox"],
+        ["equal", "="],
+        ["value", "0 0 47 40"],
+        ["attr", "fill"],
+        ["equal", "="],
+        ["value", "none"],
+        ["attr", "xmlns"],
+        ["equal", "="],
+        ["value", "http://www.w3.org/2000/svg"],
+        ["text", "\n    "],
+        ["tag", "path"],
+        ["attr", "fill"],
+        ["equal", "="],
+        ["value", "#333"],
+        ["attr", "d"],
+        ["equal", "="],
+        ["value", "M23.5"],
+        ["tag_end", ""],
+        ["text", "\n    "],
+        ["tag", "defs"],
+        ["text", "\n      "],
+        ["tag", "linearGradient"],
+        ["attr", "id"],
+        ["equal", "="],
+        ["value", "%%GRADIENT_ID%%"],
+        ["attr", "x1"],
+        ["equal", "="],
+        ["value", "33.999"],
+        ["attr", "x2"],
+        ["equal", "="],
+        ["value", "1"],
+        ["attr", "y1"],
+        ["equal", "="],
+        ["value", "16.181"],
+        ["attr", "y2"],
+        ["equal", "="],
+        ["value", "16.181"],
+        ["attr", "gradientUnits"],
+        ["equal", "="],
+        ["value", "userSpaceOnUse"],
+        ["text", "\n        "],
+        ["tag", "stop"],
+        ["attr", "stop-color"],
+        ["equal", "="],
+        ["value", "%%GRADIENT_TO%%"],
+        ["tag_end", ""],
+        ["text", "\n        "],
+        ["tag", "stop"],
+        ["attr", "offset"],
+        ["equal", "="],
+        ["value", "1"],
+        ["attr", "stop-color"],
+        ["equal", "="],
+        ["value", "%%GRADIENT_FROM%%"],
+        ["tag_end", ""],
+        ["text", "\n      "],
+        ["tag_end", "linearGradient"],
+        ["text", "\n    "],
+        ["tag_end", "defs"],
+        ["text", "\n  "],
+        ["tag_end", "svg"],
+      ].map((x) => [x[0], minifyText(x[1])])
+    );
   });
 });
