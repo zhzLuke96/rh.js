@@ -80,7 +80,7 @@ function htmlRoot(strings: TemplateStringsArray, ...values: any[]) {
   return root;
 }
 
-const validTagNameRegex = /^[a-z][a-z0-9\-_]*$/;
+const validTagNameRegex = /^[a-z][a-zA-Z0-9\-_]*$/;
 const createHTMLTagger =
   (rootComponent: Component, tagMapping: Record<string, any> = {}) =>
   (strings: TemplateStringsArray, ...values: any[]) => {
@@ -118,6 +118,7 @@ const createHTMLTagger =
       }
       if (typeof node.tag === "string") {
         if (!validTagNameRegex.test(node.tag)) {
+          // FIXME: index is wrong here
           const string =
             (<any>node).tpl_index && strings[(<any>node).tpl_index];
           throw new Error(
