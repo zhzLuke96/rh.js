@@ -624,4 +624,16 @@ describe("tokenizeHTMLTemplate", () => {
       ].map((x) => [x[0], minifyText(x[1])])
     );
   });
+
+  it("should be parse inner text only slot", () => {
+    const result = tokenizeHTMLTemplate`<div id="1">${"x"}</div>`;
+    expect(toTokensArray(result)).toEqual([
+      ["tag", "div"],
+      ["attr", "id"],
+      ["equal", "="],
+      ["value", "1"],
+      ["text", "x"],
+      ["tag_end", "div"],
+    ]);
+  });
 });

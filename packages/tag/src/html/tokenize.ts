@@ -333,6 +333,7 @@ export const tokenizeHTMLTemplate = (
         append_tag(value, idx);
         break;
       }
+      case "value":
       case "tag":
       case "text": {
         append_text(value, idx);
