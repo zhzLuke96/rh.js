@@ -34,7 +34,7 @@
 <script type="importmap">
 {
   "imports": {
-    "@rhjs/core": "https://unpkg.com/@rhjs/rh@latest/dist/main.module.mjs",
+    "@rhjs/core": "https://unpkg.com/@rhjs/core@latest/dist/main.module.mjs",
     "@rhjs/builtin": "https://unpkg.com/@rhjs/builtin@latest/dist/main.module.mjs",
     "@rhjs/tag": "https://unpkg.com/@rhjs/tag@latest/dist/main.module.mjs"
   }
