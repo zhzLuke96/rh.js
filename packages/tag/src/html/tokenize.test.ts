@@ -636,4 +636,19 @@ describe("tokenizeHTMLTemplate", () => {
       ["tag_end", "div"],
     ]);
   });
+
+  it("should be parse double value slot", () => {
+    const result = tokenizeHTMLTemplate`<${"div"} id=${0} key=${2}>${"x"}</div>`;
+    expect(toTokensArray(result)).toEqual([
+      ["tag", "div"],
+      ["attr", "id"],
+      ["equal", "="],
+      ["value", 0],
+      ["attr", "key"],
+      ["equal", "="],
+      ["value", 2],
+      ["text", "x"],
+      ["tag_end", "div"],
+    ]);
+  });
 });

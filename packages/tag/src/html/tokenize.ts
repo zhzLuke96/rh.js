@@ -287,6 +287,7 @@ export const tokenizeHTMLTemplate = (
   for (let idx = 0; idx < strings.length; idx++) {
     const string = strings[idx];
     const value = values[idx];
+    const has_value = idx < values.length;
     let tokens = [] as HTMLTemplateToken[];
     [tokens, state] = tokenizeHTML(string, state);
 
@@ -302,7 +303,7 @@ export const tokenizeHTMLTemplate = (
       );
     }
 
-    if (!value) {
+    if (!has_value) {
       continue;
     }
 
@@ -311,6 +312,7 @@ export const tokenizeHTMLTemplate = (
       switch (state) {
         case "assignment":
           append_value(value, idx);
+          state = "attribute";
           break;
         case "tag_start": {
           append_tag(value, idx);
