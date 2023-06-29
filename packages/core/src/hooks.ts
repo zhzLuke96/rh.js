@@ -170,23 +170,35 @@ export function createSignal<T>(
 
 export function createWatcher<T>(
   targetRef: Ref<T>,
-  callback: (value: T | undefined, prev: T | undefined) => any,
+  callback: (
+    value: T | undefined,
+    prev: T | undefined,
+    onCleanup: (callback: () => any) => any
+  ) => any,
   options?: ReactiveEffectOptions
 ): EffectHandler;
 export function createWatcher<T>(
   getter: () => T,
-  callback: (value: T, prev: T | undefined) => any,
+  callback: (
+    value: T,
+    prev: T | undefined,
+    onCleanup: (callback: () => any) => any
+  ) => any,
   options?: ReactiveEffectOptions
 ): EffectHandler;
 export function createWatcher(
   getterOrRef: any,
-  callback: (value: any, prev: any) => any,
+  callback: (
+    value: any,
+    prev: any,
+    onCleanup: (callback: () => any) => any
+  ) => any,
   options?: ReactiveEffectOptions
 ): EffectHandler {
   let value: any;
-  return createEffect(() => {
+  return createEffect((onCleanup) => {
     const nextValue = isRef(getterOrRef) ? getterOrRef.value : getterOrRef();
-    skip(callback, nextValue, value);
+    skip(callback, nextValue, value, onCleanup);
     value = nextValue;
   }, options);
 }

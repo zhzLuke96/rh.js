@@ -656,6 +656,29 @@ export class View {
             nextChildren[patch.index] = patch.oldNode.node;
             break;
           }
+          const newComponent = ViewComponent.view2component.get(newNode.view!);
+          const oldComponent = ViewComponent.view2component.get(oldNode.view!);
+          if (
+            newComponent &&
+            oldComponent &&
+            newComponent._component_type === oldComponent._component_type &&
+            shallowEqual(newComponent.props, oldComponent.props)
+          ) {
+            oldComponent.props = newComponent.props;
+            oldComponent.state = newComponent.state;
+            oldComponent.children = newComponent.children;
+            // TODO improve render builder to support auto context
+            const nView = newComponent.view;
+            newComponent.view = oldComponent.view;
+            oldComponent.render = newComponent.renderBuilder();
+            newComponent.view = nView;
+            oldComponent.update();
+            newComponent.children = [];
+            newComponent.view.children = [];
+            newNode.view?.unmount();
+            nextChildren[patch.index] = patch.oldNode.node;
+            break;
+          }
 
           // *(choice 2)update View
           // NOTE: In order to ensure that the context of the view rendering result remains consistent (the latest render function), it cannot be updated in the form of a patch, only the entire view can be replaced
@@ -1103,6 +1126,7 @@ export class ViewComponent {
 
   _component_type!: FunctionComponent | SetupComponent;
 
+  renderBuilder!: () => ViewRenderFunction;
   render!: ViewRenderFunction;
   runner!: ReactiveEffectRunner;
 
@@ -1176,6 +1200,8 @@ const createFCBuilder = (fn: FunctionComponent) => {
       comp.render = comp.view.zone(() => fn(props, comp.state, comp.children));
     });
     comp._component_type = fn;
+    comp.renderBuilder = () =>
+      comp.view.zone(() => fn(props, comp.state, comp.children));
     return comp;
   };
   return build;
@@ -1196,6 +1222,7 @@ const createSetupBuilder = (define: SetupComponent) => {
     });
     comp._component_type = define;
     comp.render = define.render;
+    comp.renderBuilder = () => define.render;
     return comp;
   };
   return build;
