@@ -11,7 +11,7 @@ import EventEmitter from 'eventemitter3';
 import { UniqIdleScheduler } from './internal/IdleScheduler';
 import { shallowEqual } from './internal/shallowEqual';
 
-import type { DirectiveDefine } from './hooks';
+import { DirectiveDefine, onViewEvent } from './hooks';
 
 export type MaybeRef<T = any> = T | Ref<T>;
 export type MaybeRefOrGetter<T = any> = MaybeRef<T> | (() => T);
@@ -74,37 +74,6 @@ function element2node(element: ReactiveViewElement): Node | null {
   }
   return document.createTextNode(String(element));
 }
-
-const patchView = (oldView: View, newView: View) => {
-  if (oldView.has_outside_effect || newView.has_outside_effect) {
-    throw new Error(`View has outside effect, cannot patch`);
-  }
-  const patchDOMView = (oldDOM: DOMView, newDOM: DOMView) => {
-    oldDOM.update(newDOM.DOMProps, newDOM.DOMChildren);
-    oldDOM.DOMChildren = newDOM.DOMChildren;
-    oldDOM.DOMProps = newDOM.DOMProps;
-  };
-  const patchComponentView = (oldView: View, newView: View) => {
-    newView.initialize();
-    oldView.updateChildren(newView.children);
-  };
-  const aIsDOM = oldView instanceof DOMView;
-  const bIsDOM = newView instanceof DOMView;
-  if (aIsDOM && bIsDOM) {
-    patchDOMView(oldView, newView);
-    return;
-  }
-  const oldComponent = ViewComponent.view2component.get(oldView);
-  const newComponent = ViewComponent.view2component.get(newView);
-  if (oldComponent && newComponent) {
-    oldComponent.props = newComponent.props;
-    oldComponent.state = newComponent.state;
-    oldComponent.children = newComponent.children;
-    oldComponent.update();
-    return;
-  }
-  patchComponentView(oldView, newView);
-};
 
 const isNoneValue = (x: any): x is undefined => x === undefined || x === null;
 
@@ -534,16 +503,16 @@ export class View {
           nextChildren[patch.index] = patch.node.node;
           break;
         }
-        case 'dom-update': {
-          nextChildren[patch.index] = patch.oldNode.node;
-          break;
-        }
         case 'text': {
           nextChildren[patch.index] = patch.oldNode.node;
           break;
         }
-        case 'view-patch': {
+        case 'dom-update': {
           nextChildren[patch.index] = patch.oldNode.node;
+          break;
+        }
+        case 'view-patch': {
+          nextChildren[patch.index] = patch.newNode.node;
           break;
         }
       }
@@ -570,6 +539,73 @@ export class View {
       }
       nextSiblingCache[current] = null;
       return null;
+    };
+    const insertNode = (node: DiffNode, index: number) => {
+      const nextSiblingChild = findNextSibling(index + 1);
+      const nextSibling =
+        nextSiblingChild?.parentNode === this.anchor.parentNode
+          ? nextSiblingChild
+          : this.anchor;
+      if (node.view) {
+        // unbind new view
+        node.view.parentView.children = node.view.parentView.children.filter(
+          (child) => child !== node.node
+        );
+      }
+      if (this.anchor.parentNode) {
+        if (node.view) {
+          node.view.parentView = this;
+          node.view.mount(this.anchor.parentNode, nextSibling);
+        } else {
+          this.anchor.parentNode.insertBefore(node.node, nextSibling);
+        }
+      }
+    };
+    const removeNode = (node: DiffNode) => {
+      if (node.view) {
+        node.view.unmount();
+      } else {
+        node.node.parentElement?.removeChild(node.node);
+      }
+    };
+    const replaceNode = (
+      oldNode: DiffNode,
+      newNode: DiffNode,
+      index: number
+    ) => {
+      insertNode(newNode, index);
+      removeNode(oldNode);
+    };
+    const updateDomView = (oldDOM: DOMView, newDOM: DOMView) => {
+      oldDOM.update(newDOM.DOMProps, newDOM.DOMChildren);
+      oldDOM.DOMChildren = newDOM.DOMChildren;
+      oldDOM.DOMProps = newDOM.DOMProps;
+      if (newDOM !== oldDOM) {
+        newDOM.children = [];
+        newDOM.unmount();
+      }
+    };
+    const patchView = (oldView: View, newView: View) => {
+      if (oldView instanceof DOMView && newView instanceof DOMView) {
+        updateDomView(oldView, newView);
+        return;
+      }
+      newView.initialize();
+      const oldComponent = ViewComponent.view2component.get(oldView);
+      const newComponent = ViewComponent.view2component.get(newView);
+      if (oldComponent && newComponent) {
+        oldComponent.props = newComponent.props;
+        oldComponent.state = newComponent.state;
+        oldComponent.children = newComponent.children;
+        // FIXME 不能直接替换，需要重新构造render函数
+        oldComponent.render = newComponent.render;
+        oldComponent.update();
+        newComponent.children = [];
+        newComponent.view.children = [];
+      } else {
+        // patch view
+        oldView.updateChildren(newView.children);
+      }
     };
     for (const patch of patches) {
       switch (patch.type) {
@@ -598,45 +634,36 @@ export class View {
         }
         case 'insert': {
           const { node, index } = patch;
-          const nextSiblingChild = findNextSibling(index + 1);
-          const nextSibling =
-            nextSiblingChild?.parentNode === this.anchor.parentNode
-              ? nextSiblingChild
-              : this.anchor;
-          if (this.anchor.parentNode) {
-            if (node.view) {
-              node.view.parentView = this;
-              node.view.mount(this.anchor.parentNode, nextSibling);
-            } else {
-              this.anchor.parentNode.insertBefore(node.node, nextSibling);
-            }
-          }
+          insertNode(node, index);
           break;
         }
         case 'remove': {
-          // should finally to remove
+          // here do nothing, remove when all (move/insert) done
           break;
         }
         case 'view-patch': {
           const { newNode, oldNode, index } = patch;
-          const newView = newNode.view!;
-          const oldView = oldNode.view!;
-          patchView(oldView, newView);
-          if (newView !== oldView) {
-            newView.children = [];
-            newView.unmount();
-          }
+          // *(choice 2)update View
+          // NOTE: In order to ensure that the context of the view rendering result remains consistent (the latest render function), it cannot be updated in the form of a patch, only the entire view can be replaced
+          // Not sure if non-component view can be directly patched, this needs to be studied further
+          //
+          // const newView = newNode.view!;
+          // const oldView = oldNode.view!;
+          // patchView(oldView, newView);
+          // if (newView !== oldView) {
+          //   newView.children = [];
+          //   newView.unmount();
+          // }
+          //
+          // *(choice 2)replace view
+          replaceNode(oldNode, newNode, index);
           break;
         }
         case 'dom-update': {
           const { newNode, oldNode, index } = patch;
           const newView = newNode.view! as DOMView;
           const oldView = oldNode.view! as DOMView;
-          patchView(oldView, newView);
-          if (newView !== oldView) {
-            newView.children = [];
-            newView.unmount();
-          }
+          updateDomView(oldView, newView);
           break;
         }
         case 'text': {
@@ -654,11 +681,7 @@ export class View {
         return;
       }
       const { node } = patch;
-      if (node.view) {
-        node.view.unmount();
-      } else {
-        node.node.parentElement?.removeChild(node.node);
-      }
+      removeNode(node);
     });
     return nextChildren;
   }
@@ -1165,7 +1188,7 @@ const createSetupBuilder = (define: SetupComponent) => {
       comp.state = comp.view.zone(() => define.setup(props, children));
     });
     comp._component_type = define;
-    comp.render = define.render.bind(comp);
+    comp.render = define.render;
     return comp;
   };
   return build;
