@@ -585,7 +585,9 @@ export class View {
         newDOM.unmount();
       }
     };
-    const patchView = (oldView: View, newView: View) => {
+    const patchView = (oldNode: DiffNode, newNode: DiffNode, index: number) => {
+      const oldView = oldNode.view!;
+      const newView = newNode.view!;
       if (oldView instanceof DOMView && newView instanceof DOMView) {
         updateDomView(oldView, newView);
         return;
@@ -597,11 +599,11 @@ export class View {
         oldComponent.props = newComponent.props;
         oldComponent.state = newComponent.state;
         oldComponent.children = newComponent.children;
-        // FIXME 不能直接替换，需要重新构造render函数
         oldComponent.render = newComponent.render;
         oldComponent.update();
         newComponent.children = [];
         newComponent.view.children = [];
+        newView.unmount();
       } else {
         // patch view
         oldView.updateChildren(newView.children);
@@ -613,7 +615,7 @@ export class View {
           const { to, node, newNode } = patch;
 
           if (node.view instanceof View && newNode.view instanceof View) {
-            patchView(node.view, newNode.view);
+            patchView(node, newNode, to);
           }
 
           const nextSiblingChild = findNextSibling(to + 1);
@@ -643,18 +645,23 @@ export class View {
         }
         case 'view-patch': {
           const { newNode, oldNode, index } = patch;
+          if (
+            oldNode.view?.key !== undefined &&
+            newNode.view?.key !== undefined &&
+            oldNode.view?.key !== null &&
+            newNode.view?.key !== null &&
+            newNode.view.key === oldNode.view.key
+          ) {
+            // same key don't need to patch
+            nextChildren[patch.index] = patch.oldNode.node;
+            break;
+          }
+
           // *(choice 2)update View
           // NOTE: In order to ensure that the context of the view rendering result remains consistent (the latest render function), it cannot be updated in the form of a patch, only the entire view can be replaced
           // Not sure if non-component view can be directly patched, this needs to be studied further
-          //
-          // const newView = newNode.view!;
-          // const oldView = oldNode.view!;
-          // patchView(oldView, newView);
-          // if (newView !== oldView) {
-          //   newView.children = [];
-          //   newView.unmount();
-          // }
-          //
+          // patchView(oldNode, newNode, index);
+
           // *(choice 2)replace view
           replaceNode(oldNode, newNode, index);
           break;
