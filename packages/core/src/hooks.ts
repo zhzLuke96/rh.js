@@ -22,6 +22,7 @@ import {
   MaybeRef,
   InlineRenderResult,
   rh,
+  FunctionComponent,
 } from './core';
 
 export const useCurrentView = () => View.topView();
@@ -381,13 +382,13 @@ export function weakMount(render: () => Node | null | undefined | void) {
   return node;
 }
 
-export const provide = <T>(key: string, value: T) => {
+export const provide = <T>(key: keyof any, value: T) => {
   const view = View.topView();
   view.setContextValue(key, value);
 };
-export function inject<T>(key: string): T | undefined;
-export function inject<T>(key: string, defaultValue: T): T;
-export function inject(key: string, defaultValue: any = View.symbols.NONE) {
+export function inject<T>(key: keyof any): T | undefined;
+export function inject<T>(key: keyof any, defaultValue: T): T;
+export function inject(key: keyof any, defaultValue: any = View.symbols.NONE) {
   const view = View.topView();
   const value = view.getContextValue(key);
   if (value === View.symbols.NONE) {
@@ -396,6 +397,33 @@ export function inject(key: string, defaultValue: any = View.symbols.NONE) {
     }
   }
   return value;
+}
+
+const contextIdSymbol = Symbol('context_id');
+type Context<T = unknown> = {
+  [contextIdSymbol]: symbol;
+  defaultValue: T;
+  Provider: FunctionComponent<{ value: T }>;
+};
+
+export function createContext<T>(defaultValue: T): Context<T>;
+export function createContext(defaultValue?: any) {
+  const id = Symbol();
+  const ctx: Context = {
+    [contextIdSymbol]: id,
+    defaultValue,
+    Provider: (props, state, children) => {
+      provide(id, props.value);
+      return () => children;
+    },
+  };
+  return ctx;
+}
+
+export function injectContext<T>(ctx: Context<T>): T | undefined;
+export function injectContext<T>(ctx: Context<T>, defaultValue: T): T;
+export function injectContext<T>(ctx: Context<T>, defaultValue?: T) {
+  return inject(ctx[contextIdSymbol], defaultValue);
 }
 
 export function memoView<T extends UnwrapRef<any>>(
