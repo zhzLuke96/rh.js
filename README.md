@@ -1,27 +1,34 @@
 # rh.js
 
-[![size badge](https://img.shields.io/github/languages/code-size/zhzluke96/rh.js?label=size)](https://github.com/zhzLuke96/rh.js)
 [![language](https://img.shields.io/github/languages/top/zhzluke96/rh.js)](https://github.com/zhzLuke96/rh.js)
-[![version](https://img.shields.io/github/package-json/v/zhzluke96/rh.js)](https://github.com/zhzLuke96/rh.js)
 
 🧩 Lightweight & Powerful framework
 
 **FEATURES:**
 
-- Packed `main.js` only `~15kb`
+- Packed `main.js` only `< 15kb`
 - Based on `@vue/reactivity`
 - function component patterns
 - Not extras syntax, all in js. 
 - No VDom, always dom.
 - JSX style
 
+# Packages
+| Package | Version | Size | Description |
+|---------|---------|------|-------------|
+| `@rhjs/core`    | ![Core Version](https://img.shields.io/github/package-json/v/zhzluke96/rh.js?filename=packages%2Fcore%2Fpackage.json&color=blue) | ![size](https://img.badgesize.io/https:/unpkg.com/@rhjs/core@latest/dist/main.module.mjs?label=gzip%20size&compression=gzip&style=plastic) | core code. |
+| `@rhjs/builtin` | ![Builtin Version](https://img.shields.io/github/package-json/v/zhzluke96/rh.js?filename=packages%2Fbuiltin%2Fpackage.json&color=blue) | ![size](https://img.badgesize.io/https:/unpkg.com/@rhjs/builtin@latest/dist/main.module.mjs?label=gzip%20size&compression=gzip&style=plastic) | builtin function, such like `For` / `lazy` / `Portal`. |
+| `@rhjs/tag`     | ![Tag Version](https://img.shields.io/github/package-json/v/zhzluke96/rh.js?filename=packages%2Ftag%2Fpackage.json&color=blue) | ![size](https://img.badgesize.io/https:/unpkg.com/@rhjs/tag@latest/dist/main.module.mjs?label=gzip%20size&compression=gzip&style=plastic) | Some convenient-to-use template string tools, such like `html` / `raw` / `text`. |
+| `@rhjs/atomic-css`     | ![version](https://img.shields.io/github/package-json/v/zhzluke96/rh-atomic-css?color=blue) | ![size](https://img.badgesize.io/https:/unpkg.com/@rhjs/atomic-css@latest/dist/main.module.mjs?label=gzip%20size&compression=gzip&style=plastic) | tailwindcss runtime. |
+| `@rhjs/query`     | 🚧 | 🚧 | Porting react-query. |
+
 # Table of Contents
 
 - [rh.js](#rhjs)
+- [Packages](#packages)
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
-- [@Rhjs online](#rhjs-online)
-- [Related Efforts](#related-efforts)
+- [TRY IT](#try-it)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
 - [LICENSE](#license)
@@ -61,16 +68,10 @@
 
 > online in [codesandbox](https://codesandbox.io/s/vibrant-microservice-rw3kv4?file=/src/index.js)
 
-# @Rhjs online
+# TRY IT
 - playground: https://zhzluke96.github.io/rhjs-playground/
-- more demo come soon...
-
-# Related Efforts
-
-- [lit-element](https://github.com/Polymer/lit-element) A simple base class for creating fast, lightweight web components
-- [alpine](https://github.com/alpinejs/alpine) A rugged, minimal framework for composing JavaScript behavior in your markup.
-- [petite-vue](https://github.com/vuejs/petite-vue) 6kb subset of Vue optimized for progressive enhancement
-- [solid](https://github.com/solidjs/solid) A declarative, efficient, and flexible JavaScript library for building user interfaces.
+- template hub: 🚧
+- component hub: 🚧
 
 # Maintainers
 
