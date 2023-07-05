@@ -334,6 +334,8 @@ export type ViewEvent = {
   update_before: () => any;
   updated: () => any;
   update_after: () => any;
+  patch_before: () => any;
+  patch_after: () => any;
   error: (err: any) => any;
   throw: (value: any) => any;
 
@@ -472,16 +474,21 @@ export class View {
     }
 
     const patchTask = () => {
+      this.events.emit('patch_before');
       const nextChildren = this.patchAll(patches, newChildren);
       this.children = nextChildren.filter(Boolean) as Node[];
     };
 
     if (this.initialized) {
       // * async patch
-      this.scheduler.runTask('patch-children', patchTask);
+      const task = this.scheduler.runTask('patch-children', patchTask);
+      task.promise.then(() => {
+        this.events.emit('patch_after');
+      });
     } else {
       // * sync patch
       patchTask();
+      this.events.emit('patch_after');
     }
   }
 

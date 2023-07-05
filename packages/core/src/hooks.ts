@@ -63,6 +63,8 @@ export const onAfterUnmount = createOnEvent('unmount_after');
 export const onUpdated = createOnEvent('updated');
 export const onBeforeUpdate = createOnEvent('update_before');
 export const onAfterUpdate = createOnEvent('update_after');
+export const onBeforePatch = createOnEvent('patch_before');
+export const onAfterPatch = createOnEvent('patch_after');
 export const onError = createOnEvent('error');
 export const onCatch = createOnEvent('throw');
 // component event
