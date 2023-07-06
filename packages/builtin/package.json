@@ -31,7 +31,7 @@
     "release": "pnpm run prepack && pnpm publish --access public"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@rhjs/core": "workspace:^"
   },
