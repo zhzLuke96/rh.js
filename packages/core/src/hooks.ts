@@ -143,17 +143,18 @@ export function createState<T>(
   initialState: T,
   options?: {
     equals?: false | ((a: T, b: T) => boolean);
+    deep?: boolean;
   }
 ) {
   const comparator = options?.equals;
-  const stateRef = shallowRef(initialState);
+  const stateRef = (options?.deep ? ref : shallowRef)(initialState);
   const mutator: StateMutator<T> = (valueOrMutate: any) => {
     const currentValue = untrack(stateRef);
     const nextValue =
       typeof valueOrMutate === 'function'
         ? valueOrMutate(currentValue)
         : valueOrMutate;
-    if (comparator && comparator(currentValue, nextValue)) {
+    if (comparator && comparator(currentValue as T, nextValue)) {
       return;
     }
     stateRef.value = nextValue;
@@ -161,6 +162,7 @@ export function createState<T>(
   };
   return [readonly(stateRef), mutator] as const;
 }
+
 export function createSignal<T>(
   initialValue: T,
   options?: {
