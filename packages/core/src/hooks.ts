@@ -224,7 +224,7 @@ export function createSubscription<T>(
     }
     valueRef.value = nextValue;
   });
-  onMounted(offListener);
+  onUnmounted(offListener);
   return readonly(valueRef);
 }
 type ResourceFetcher<T, ARGS extends any[] = any[]> = (
