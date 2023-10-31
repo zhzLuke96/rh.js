@@ -572,7 +572,7 @@ export class View {
       if (node.view) {
         node.view.unmount();
       } else {
-        node.node.parentElement?.removeChild(node.node);
+        node.node.parentNode?.removeChild(node.node);
       }
     };
     const replaceNode = (
@@ -725,7 +725,7 @@ export class View {
 
   remove() {
     for (const child of this.children) {
-      child.parentElement?.removeChild(child);
+      child.parentNode?.removeChild(child);
       const view = View.dom2view.get(child);
       if (view) {
         view.remove();
@@ -1121,7 +1121,7 @@ export class DOMView extends View {
   }
 
   unmount(): void {
-    this.elem.parentElement?.removeChild(this.elem);
+    this.elem.parentNode?.removeChild(this.elem);
     Object.values(this.propsCleanups).forEach((cb) => cb());
     this.propsCleanups = {};
     super.unmount();
