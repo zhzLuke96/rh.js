@@ -135,17 +135,15 @@ export const createEffect = (
   eventOff = onCleanup(cleanup);
   return { runner, cleanup };
 };
-type StateMutator<T> = {
+export type StateMutator<T> = {
   (value: T): void;
   (mutate: (x: T) => T): void;
 };
-export function createState<T>(
-  initialState: T,
-  options?: {
-    equals?: false | ((a: T, b: T) => boolean);
-    deep?: boolean;
-  }
-) {
+export type StateOptions<T> = {
+  equals?: false | ((a: T, b: T) => boolean);
+  deep?: boolean;
+};
+export function createState<T>(initialState: T, options?: StateOptions<T>) {
   const comparator = options?.equals;
   const stateRef = (options?.deep ? ref : shallowRef)(initialState);
   const mutator: StateMutator<T> = (valueOrMutate: any) => {
@@ -163,41 +161,29 @@ export function createState<T>(
   return [readonly(stateRef), mutator] as const;
 }
 
-export function createSignal<T>(
-  initialValue: T,
-  options?: {
-    equals?: false | ((a: T, b: T) => boolean);
-  }
-) {
+export function createSignal<T>(initialValue: T, options?: StateOptions<T>) {
   const [state, setSignal] = createState(initialValue, options);
   return [() => unref(state), setSignal] as const;
 }
 
+export type WatcherCallback<Value, Prev> = (
+  value: Value,
+  prev: Prev,
+  onCleanup: (callback: () => any) => any
+) => any;
 export function createWatcher<T>(
   targetRef: Ref<T>,
-  callback: (
-    value: T | undefined,
-    prev: T | undefined,
-    onCleanup: (callback: () => any) => any
-  ) => any,
+  callback: WatcherCallback<T | undefined, T | undefined>,
   options?: ReactiveEffectOptions
 ): EffectHandler;
 export function createWatcher<T>(
   getter: () => T,
-  callback: (
-    value: T,
-    prev: T | undefined,
-    onCleanup: (callback: () => any) => any
-  ) => any,
+  callback: WatcherCallback<T, T | undefined>,
   options?: ReactiveEffectOptions
 ): EffectHandler;
 export function createWatcher(
   getterOrRef: any,
-  callback: (
-    value: any,
-    prev: any,
-    onCleanup: (callback: () => any) => any
-  ) => any,
+  callback: WatcherCallback<any, any>,
   options?: ReactiveEffectOptions
 ): EffectHandler {
   let value: any;
@@ -216,18 +202,25 @@ export function createSubscription<T>(
   subscribe: (listener: () => any) => () => void,
   getSnapshot: () => T
 ): SubscribedValue<T> {
-  const valueRef = ref<any>(getSnapshot());
-  const offListener = subscribe(() => {
-    const nextValue = getSnapshot();
-    if (Object.is(nextValue, unref(valueRef))) {
-      return;
-    }
-    valueRef.value = nextValue;
+  const valueRef = ref<any>();
+  // like createWatcher but less call stack
+  createEffect((onCleanup) => {
+    valueRef.value = getSnapshot();
+    const offListener = subscribe(() => {
+      skip(() => {
+        const nextValue = getSnapshot();
+        if (Object.is(nextValue, unref(valueRef))) {
+          return;
+        }
+        valueRef.value = nextValue;
+      });
+    });
+    onCleanup(offListener);
   });
-  onUnmounted(offListener);
   return readonly(valueRef);
 }
-type ResourceFetcher<T, ARGS extends any[] = any[]> = (
+
+export type ResourceFetcher<T, ARGS extends any[] = any[]> = (
   ...args: ARGS
 ) => PromiseLike<T>;
 

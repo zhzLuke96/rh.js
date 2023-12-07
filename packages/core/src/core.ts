@@ -817,9 +817,16 @@ export class View {
 const isStyleElement = (x: Element): x is HTMLElement =>
   x instanceof Element && typeof (<any>x)['style'] === 'object';
 
+const is_boolean_value = (x: any) =>
+  typeof x === 'boolean' ||
+  (typeof x === 'string' &&
+    (x === '' || x.toLowerCase() === 'true' || x.toLowerCase() === 'false'));
+
 const setAttribute = (dom: Element, name: string, value: any) => {
-  if (typeof value === 'boolean') {
-    if (value) dom.setAttribute(name, '');
+  if (typeof value === 'boolean' || is_boolean_value(value)) {
+    const is_true =
+      typeof value === 'boolean' ? value : value.toLowerCase() === 'true';
+    if (is_true) dom.setAttribute(name, '');
     else dom.removeAttribute(name);
     return;
   }
@@ -857,6 +864,27 @@ const setAttribute = (dom: Element, name: string, value: any) => {
     }
     default: {
       dom.setAttribute(name, String(value));
+      break;
+    }
+  }
+};
+
+const unSetAttribute = (dom: Element, name: string) => {
+  switch (name) {
+    case 'className':
+    case 'class': {
+      dom.removeAttribute('class');
+      break;
+    }
+    case 'style': {
+      if (!isStyleElement(dom)) {
+        break;
+      }
+      dom.style.cssText = '';
+      break;
+    }
+    default: {
+      dom.removeAttribute(name);
       break;
     }
   }
@@ -990,7 +1018,12 @@ export class DOMView extends View {
     this.cleanupProp(key);
 
     this.matchDirectives(key, value);
-    if (key.startsWith('$') || key.startsWith('_') || key === 'key') {
+    if (
+      key === 'key' ||
+      // ignore private props ($xx | _xx) for custom directive
+      key.startsWith('$') ||
+      key.startsWith('_')
+    ) {
       return;
     }
 
@@ -1001,6 +1034,13 @@ export class DOMView extends View {
       } else if (typeof value === 'function') {
         value(element);
       }
+      this.addPropCleanup(key, () => {
+        if (isRef(value)) {
+          value.value = null;
+        } else if (typeof value === 'function') {
+          value(null);
+        }
+      });
       return;
     }
     if (!(element instanceof Element)) {
@@ -1028,6 +1068,7 @@ export class DOMView extends View {
 
         setAttribute(element, key, nextValue);
       });
+      this.addPropCleanup(key, () => unSetAttribute(element, key));
       this.addPropCleanup(key, () => runner?.effect.stop());
     }
   }
