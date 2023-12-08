@@ -8,3 +8,4 @@ export * from "./For";
 export * from "./lazy";
 
 export * from "./directives";
+export * from "./reactivity";
