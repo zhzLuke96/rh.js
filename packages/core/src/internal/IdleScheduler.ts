@@ -33,7 +33,7 @@ export class IdleScheduler {
     };
   }
 
-  size() {
+  public size() {
     return this.taskQueue.size;
   }
 
@@ -139,7 +139,69 @@ export class IdleScheduler {
   }
 }
 
-export const globalIdleScheduler = new IdleScheduler();
+/**
+ * when the browser is not support MessageChannel, sync mode will be used
+ *
+ * NOTE: test env is not support MessageChannel, so we use sync mode in test env
+ */
+export class IdleSchedulerSync {
+  public size() {
+    return 0;
+  }
+
+  public async runTask<RET = any>(task: IdleTaskFunction<RET>): Promise<RET> {
+    return Promise.resolve(task({ timeRemaining: () => 0 }));
+  }
+
+  public buildTask<RET = any>(task: IdleTaskFunction<RET>): IdleTask<RET> {
+    let result = undefined as any;
+    return {
+      cancel: () => {},
+      promise: this.runTask(task).then((r) => {
+        result = r;
+        return r;
+      }),
+      state: () => ({ isCancelled: false, isDone: true, result }),
+    };
+  }
+}
+
+/**
+ * async mode
+ *
+ * use setTimeout to simulate async mode, for async test case
+ */
+export class IdleSchedulerAsync {
+  public size() {
+    return 0;
+  }
+
+  public async runTask<RET = any>(task: IdleTaskFunction<RET>): Promise<RET> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(task({ timeRemaining: () => 0 }));
+      }, 0);
+    });
+  }
+
+  public buildTask<RET = any>(task: IdleTaskFunction<RET>): IdleTask<RET> {
+    let result = undefined as any;
+    return {
+      cancel: () => {},
+      promise: this.runTask(task).then((r) => {
+        result = r;
+        return r;
+      }),
+      state: () => ({ isCancelled: false, isDone: true, result }),
+    };
+  }
+}
+
+const is_sync_env =
+  typeof requestIdleCallback === 'function' && !!window.MessageChannel;
+export const globalIdleScheduler = is_sync_env
+  ? new IdleScheduler()
+  : new IdleSchedulerAsync();
 
 export class UniqIdleScheduler {
   tasks = new Map<string, IdleTask<any>>();

@@ -7,7 +7,7 @@ import {
   Ref,
   unref,
 } from '@vue/reactivity';
-import EventEmitter from 'eventemitter3';
+import { EventEmitter } from 'eventemitter3';
 import { UniqIdleScheduler } from './internal/IdleScheduler';
 import { shallowEqual } from './internal/shallowEqual';
 
@@ -1182,6 +1182,8 @@ export class ViewComponent {
 
   props = {} as AnyRecord;
   state = {} as AnyRecord;
+
+  // FIXME children type should only writeable (public)
   children = [] as any[];
 
   constructor() {
