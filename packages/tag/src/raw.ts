@@ -1,4 +1,5 @@
-import { unref, createMemo } from "@rhjs/core";
+import { unref } from "@rhjs/core";
+import { createMemo } from "@rhjs/hooks";
 
 const unrefFn = (val: any) => unref(typeof val === "function" ? val() : val);
 /**

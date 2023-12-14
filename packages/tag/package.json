@@ -1,7 +1,7 @@
 {
   "name": "@rhjs/tag",
   "amdName": "rh-tag",
-  "version": "0.1.8",
+  "version": "0.3.0",
   "description": "",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
@@ -28,7 +28,8 @@
   "license": "MIT",
   "dependencies": {
     "@rhjs/builtin": "workspace:^",
-    "@rhjs/core": "workspace:^"
+    "@rhjs/core": "workspace:^",
+    "@rhjs/hooks": "workspace:^"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",

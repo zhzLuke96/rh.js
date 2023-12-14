@@ -1,4 +1,5 @@
-import { isRef, Ref, unref, createEffect, rh } from "@rhjs/core";
+import { isRef, Ref, unref, rh } from "@rhjs/core";
+import { createEffect } from "@rhjs/hooks";
 
 /**
  * reactivity text node
