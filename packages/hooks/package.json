@@ -1,7 +1,7 @@
 {
   "name": "@rhjs/hooks",
   "amdName": "rh-hooks",
-  "version": "0.3.2",
+  "version": "0.3.4",
   "description": "",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
