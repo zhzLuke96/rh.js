@@ -1,4 +1,4 @@
-describe('View', () => {
+describe('compile', () => {
   beforeEach(() => jest.resetModules());
 
   it('TODO', () => {

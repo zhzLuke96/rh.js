@@ -1,4 +1,4 @@
-describe('Hooks', () => {
+describe('mount', () => {
   beforeEach(() => jest.resetModules());
 
   it('TODO', () => {

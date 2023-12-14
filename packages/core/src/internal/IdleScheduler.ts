@@ -197,11 +197,18 @@ export class IdleSchedulerAsync {
   }
 }
 
-const is_sync_env =
+const is_supported =
   typeof requestIdleCallback === 'function' && !!window.MessageChannel;
-export const globalIdleScheduler = is_sync_env
+export let globalIdleScheduler = is_supported
   ? new IdleScheduler()
   : new IdleSchedulerAsync();
+
+if (localStorage.getItem('@rhjs/IdleSchedulerAsync/enable')) {
+  globalIdleScheduler = new IdleSchedulerAsync();
+}
+if (localStorage.getItem('@rhjs/IdleSchedulerSync/enable')) {
+  globalIdleScheduler = new IdleSchedulerSync();
+}
 
 export class UniqIdleScheduler {
   tasks = new Map<string, IdleTask<any>>();

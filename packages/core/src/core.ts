@@ -1,37 +1,27 @@
 import {
-  DebuggerEvent,
   effect,
   effectScope,
   isRef,
   ReactiveEffectRunner,
-  Ref,
   unref,
 } from '@vue/reactivity';
 import { EventEmitter } from 'eventemitter3';
 import { UniqIdleScheduler } from './internal/IdleScheduler';
 import { shallowEqual } from './internal/shallowEqual';
 
-import { DirectiveDefine, onViewEvent } from './hooks';
-
-export type MaybeRef<T = any> = T | Ref<T>;
-export type MaybeRefOrGetter<T = any> = MaybeRef<T> | (() => T);
-
-export type AnyRecord = Record<string, any>;
-export type ViewDataType = string | boolean | number | null | undefined | void;
-export type ViewElement = Node | ViewDataType;
-export type InlineRenderResult = ViewElement | ViewElement[];
-export type InlineRender = () => InlineRenderResult;
-export type ReactiveElement = InlineRender | Ref<ViewDataType>;
-export type ReactiveViewElement = ViewElement | ReactiveElement;
-export type ViewRenderResult = ReactiveViewElement | Array<ReactiveViewElement>;
-export type ComponentArguments<Props = any, State = any, Children = any[]> = [
-  props: Props,
-  state: State,
-  children: Children
-];
-export type ViewRenderFunction<Props = any, State = any, Children = any[]> = (
-  ...args: ComponentArguments<Props, State, Children>
-) => ViewRenderResult;
+import { DirectiveDefine } from './directive';
+import {
+  ReactiveViewElement,
+  AnyRecord,
+  ViewRenderFunction,
+  ComponentArguments,
+} from './types';
+import { skip } from './reactivity';
+import { unrefAttribute, unSetAttribute } from './utils';
+import { ViewEvent } from './types';
+import { AllHTMLElementTagNames, Component } from './types';
+import { PropsDiffPatch } from './types';
+import { setAttribute } from './utils';
 
 function element2node(element: ReactiveViewElement): Node | null {
   if (element === undefined || element === null) {
@@ -41,36 +31,8 @@ function element2node(element: ReactiveViewElement): Node | null {
     return element;
   }
   if (isRef(element) || typeof element === 'function') {
-    const view = new View();
-    view.has_outside_effect = true;
-    let runner: ReactiveEffectRunner;
-    if (isRef(element)) {
-      const text = document.createTextNode('');
-      runner = effect(
-        () => {
-          const textContent = String(unref(element));
-          if (textContent !== text.textContent) {
-            text.textContent = textContent;
-          }
-        },
-        { lazy: false }
-      );
-      view.updateChildren([text]);
-    } else {
-      runner = effect(
-        () => {
-          const viewChildren = element();
-          view.updateChildren(
-            Array.isArray(viewChildren) ? viewChildren : [viewChildren]
-          );
-        },
-        { lazy: false }
-      );
-    }
-    view.events.on('unmounted', () => {
-      runner.effect.stop();
-    });
-    return view.anchor;
+    const render = () => (isRef(element) ? unref(element) : element());
+    return rh(() => render);
   }
   return document.createTextNode(String(element));
 }
@@ -85,9 +47,9 @@ type DiffNode = {
 };
 const node2diffNode = (node: Node): DiffNode => ({
   node,
-  view: View.dom2view.get(node),
-  key: View.dom2view.get(node)?.key,
-  keyed: !isNoneValue(View.dom2view.get(node)?.key),
+  view: View.anchor2view.get(node),
+  key: View.anchor2view.get(node)?.key,
+  keyed: !isNoneValue(View.anchor2view.get(node)?.key),
 });
 type DiffPatch =
   | {
@@ -117,6 +79,14 @@ type DiffPatch =
       oldNode: DiffNode;
       newNode: DiffNode;
       index: number;
+    }
+  | {
+      type: 'patch-children';
+      oldNode: DiffNode;
+      newNode: DiffNode;
+      index: number;
+      oldComponent: ViewComponent;
+      newComponent: ViewComponent;
     }
   | {
       type: 'view-patch';
@@ -164,13 +134,14 @@ function diffChildren(newChildren: Node[], oldChildren: Node[]): DiffPatch[] {
       continue;
     }
     if (
-      newNode?.node instanceof Text &&
-      oldNode?.node instanceof Text &&
-      !View.isAnchor(newNode.node) &&
-      !View.isAnchor(oldNode.node) &&
-      !newNode.view?.has_outside_effect &&
-      !oldNode.view?.has_outside_effect
+      newNode &&
+      oldNode &&
+      !newNode.view &&
+      !oldNode.view &&
+      newNode.node instanceof Text &&
+      oldNode.node instanceof Text
     ) {
+      // text diff
       if (newNode.node.textContent !== oldNode.node.textContent) {
         patches.push({
           type: 'text',
@@ -190,14 +161,32 @@ function diffChildren(newChildren: Node[], oldChildren: Node[]): DiffPatch[] {
         });
       }
       if (oldNode && !oldNode.keyed) {
-        patches.push({
-          type: 'remove',
-          index,
-          node: oldNode,
-        });
+        const insideNewNodes = newNodes.some((x) => x.node === oldNode.node);
+        if (!insideNewNodes)
+          patches.push({
+            type: 'remove',
+            index,
+            node: oldNode,
+          });
       }
     };
-    if (!newNode || !oldNode) {
+    if (newNode?.view && oldNode?.view && newNode.view === oldNode.view) {
+      // same view
+      continue;
+    }
+    if (
+      newNode?.view?.has_outside_effect ||
+      oldNode?.view?.has_outside_effect
+    ) {
+      replace();
+      continue;
+    }
+    if (
+      (newNode?.view && !oldNode?.view) ||
+      (!newNode?.view && oldNode?.view)
+    ) {
+      replace();
+    } else if (!newNode || !oldNode) {
       replace();
     } else if (!newNode && !oldNode) {
       replace();
@@ -207,33 +196,34 @@ function diffChildren(newChildren: Node[], oldChildren: Node[]): DiffPatch[] {
       replace();
     } else if (!newNode.view || !oldNode.view) {
       replace();
-    } else if (
-      newNode.view.has_outside_effect ||
-      oldNode.view.has_outside_effect
-    ) {
-      replace();
     } else {
       const oldView = oldNode.view;
       const newView = newNode.view;
 
-      const oldIsDOM = oldView instanceof DOMView;
-      const newIsDOM = newView instanceof DOMView;
+      const oldIsDOM = oldView instanceof DomView;
+      const newIsDOM = newView instanceof DomView;
       if ((oldIsDOM && !newIsDOM) || (!oldIsDOM && newIsDOM)) {
         replace();
         continue;
       }
 
       if (oldIsDOM && newIsDOM) {
-        const isSameDOM = oldView.elem.nodeName === newView.elem.nodeName;
-        if (isSameDOM) {
+        const is_same_dom = oldView.elem.nodeName === newView.elem.nodeName;
+        if (!is_same_dom) {
+          replace();
+          continue;
+        }
+        const is_changed =
+          oldView.elem.nodeName !== newView.elem.nodeName ||
+          !shallowEqual(oldView.domProps, newView.domProps) ||
+          !shallowEqual(oldView.domChildren, newView.domChildren);
+        if (is_changed) {
           patches.push({
             type: 'dom-update',
             oldNode,
             newNode,
             index,
           });
-        } else {
-          replace();
         }
         continue;
       }
@@ -251,12 +241,27 @@ function diffChildren(newChildren: Node[], oldChildren: Node[]): DiffPatch[] {
         replace();
         continue;
       }
+      if (!(oldComponent && newComponent)) {
+        replace();
+        continue;
+      }
+      const is_changed = !shallowEqual(oldComponent.props, newComponent.props);
 
+      if (is_changed) {
+        patches.push({
+          type: 'view-patch',
+          oldNode,
+          newNode,
+          index,
+        });
+      }
       patches.push({
-        type: 'view-patch',
+        type: 'patch-children',
         oldNode,
         newNode,
         index,
+        oldComponent,
+        newComponent,
       });
     }
   }
@@ -269,7 +274,7 @@ function diffChildren(newChildren: Node[], oldChildren: Node[]): DiffPatch[] {
     }
     const sameOldIndex = oldNodes.findIndex((node) => node.key === newNode.key);
     if (sameOldIndex === index) {
-      if (newNode.view instanceof DOMView) {
+      if (newNode.view instanceof DomView) {
         patches.push({
           type: 'dom-update',
           oldNode: oldNodes[sameOldIndex],
@@ -321,30 +326,6 @@ function diffChildren(newChildren: Node[], oldChildren: Node[]): DiffPatch[] {
   return patches;
 }
 
-export type ViewEvent = {
-  init_before: () => any;
-  init: () => any;
-  init_after: () => any;
-  mount_before: (parentElement: Node, parentView: View) => any;
-  mounted: (parentElement: Node, parentView: View) => any;
-  mount_after: (parentElement: Node, parentView: View) => any;
-  unmount_before: () => any;
-  unmounted: () => any;
-  unmount_after: () => any;
-  update_before: () => any;
-  updated: () => any;
-  update_after: () => any;
-  patch_before: () => any;
-  patch_after: () => any;
-  error: (err: any) => any;
-  throw: (value: any) => any;
-
-  // component events
-  render_stop: () => any;
-  render_tracked: (event: DebuggerEvent) => any;
-  render_triggered: (event: DebuggerEvent) => any;
-};
-
 export class View {
   static symbols = {
     NONE: Symbol('NONE'),
@@ -357,7 +338,7 @@ export class View {
   static getNextIndex() {
     return ++View.index;
   }
-  static dom2view = new WeakMap<Node, View>();
+  static anchor2view = new WeakMap<Node, View>();
   static stack = [] as View[];
   static topView = () => View.stack[View.stack.length - 1];
   static pushView = (view: View) => View.stack.push(view);
@@ -371,7 +352,7 @@ export class View {
   }
 
   static isAnchor(node: Node) {
-    return node instanceof Text && (<any>node)[View.symbols.ANCHOR];
+    return View.anchor2view.has(node);
   }
 
   static {
@@ -384,13 +365,14 @@ export class View {
   scheduler = new UniqIdleScheduler();
 
   events = new EventEmitter<ViewEvent>();
+  status = 'created' as 'created' | 'inited' | 'mounted' | 'unmounted';
 
   anchor: Node;
   children: Node[] = [];
 
   context = {} as AnyRecord;
 
-  parentView = View.globalView;
+  parentView = View.topView() || View.globalView;
 
   is_container = false;
 
@@ -402,61 +384,135 @@ export class View {
 
   constructor(anchor = View.createAnchor() as Node) {
     this.anchor = anchor;
-    View.dom2view.set(this.anchor, this);
+    (<any>anchor)['__view'] = this;
+    View.anchor2view.set(this.anchor, this);
+
     this.events.on('error', (err) => {
       if (this.events.listenerCount('error') === 1) {
+        // feature: Error boundary
         // no consumer should to Propagation
         this.parentView?.events.emit('error', err);
       }
     });
     this.events.on('throw', (err) => {
       if (this.events.listenerCount('throw') === 1) {
+        // feature: like Error boundary catch, but throw anything
         // no consumer should to Propagation
         this.parentView?.events.emit('throw', err);
       }
     });
   }
 
-  protected initialized = false;
   initialize() {
-    if (this.initialized) {
+    if (this.status !== 'created') {
       return;
     }
     this.events.emit('init_before');
     this.events.emit('init');
+    this.status = 'inited';
     this.events.emit('init_after');
-
-    this.initialized = true;
   }
 
-  mount(parentElement: Node, insertBefore?: Node | null) {
-    this.initialize();
-    this.events.emit('mount_before', parentElement, this.parentView);
-    parentElement.insertBefore(this.anchor, insertBefore || null);
-    this.mountChildren(parentElement);
-    this.events.emit('mounted', parentElement, this.parentView);
-    this.events.emit('mount_after', parentElement, this.parentView);
-  }
-
-  mountChildren(parentElement: Node) {
-    if (!parentElement.contains(this.anchor)) {
-      throw new Error(
-        `Cannot mount children before anchor, anchor not contained in parentElement.`
-      );
-    }
+  querySelector(selector: string): Element | null {
     for (const child of this.children) {
-      parentElement.insertBefore(child, this.anchor);
-      const view = View.dom2view.get(child);
+      if (child instanceof Element && child.matches(selector)) {
+        return child;
+      }
+      const view = View.anchor2view.get(child);
+      if (view) {
+        const elem = view.querySelector(selector);
+        if (elem) {
+          return elem;
+        }
+      }
+    }
+    return null;
+  }
+
+  querySelectorAll(selector: string): Element[] {
+    const result = [] as Element[];
+    for (const child of this.children) {
+      if (child instanceof Element && child.matches(selector)) {
+        result.push(child);
+      }
+      const view = View.anchor2view.get(child);
+      if (view) {
+        const elems = view.querySelectorAll(selector);
+        result.push(...elems);
+      }
+    }
+    return result;
+  }
+
+  getChildrenParentNode() {
+    return this.anchor.parentNode;
+  }
+
+  protected mountView(parentElement: Node, insertBefore?: Node | null) {
+    if (this.anchor === insertBefore) return;
+    parentElement.insertBefore(this.anchor, insertBefore || null);
+  }
+
+  mount(parentElement: Node, insertBefore?: Node | null, is_move = false) {
+    this.initialize();
+    if (is_move) {
+      this.events.emit('move_before', parentElement, this.parentView);
+    } else {
+      this.events.emit('mount_before', parentElement, this.parentView);
+    }
+
+    this.mountView(parentElement, insertBefore);
+
+    if (this.anchor instanceof Text) {
+      // DomView not need to mount children
+      // FIXME: The inheritance relationship is wrong.
+      //        It should be DomView => FragmentView => ViewComponent.
+      //        The current order is VIew => DomView, View => ViewComponent,
+      //        which leads to logic errors and many codes are difficult to understand.
+      this.mountChildren(parentElement, is_move);
+    }
+
+    if (is_move) {
+      this.events.emit('move_after', parentElement, this.parentView);
+    } else {
+      this.events.emit('mounted', parentElement, this.parentView);
+      this.status = 'mounted';
+      this.events.emit('mount_after', parentElement, this.parentView);
+    }
+  }
+
+  protected _fragment: DocumentFragment | undefined;
+  protected getChildrenFragment() {
+    const fragment = (this._fragment =
+      this._fragment || document.createDocumentFragment());
+    for (const child of this.children) {
+      fragment.appendChild(child);
+    }
+    return fragment;
+  }
+
+  protected mountChildren(parentElement: Node, is_move = false) {
+    const fragment = this.getChildrenFragment();
+    parentElement.insertBefore(
+      fragment,
+      // DomView.anchor is a HTMLElement, just children insert to anchor(ParentElement)
+      this.anchor === parentElement ? null : this.anchor
+    );
+
+    for (const child of this.children) {
+      const view = View.anchor2view.get(child);
       if (view) {
         if (view === this) {
           throw new Error(`Cannot mount children to self`);
         }
         view.parentView = this;
-        view.mount(parentElement, child);
+        // NOTE: insertBefore => self, Represents keeping the position unchanged, but refreshing the children
+        view.mount(parentElement, child, is_move);
       }
     }
   }
 
+  protected first_render = true;
   updateChildren(elements: ReactiveViewElement[]) {
     const newChildren = elements
       .flat(64)
@@ -472,23 +528,30 @@ export class View {
     if (patches.length === 0) {
       return;
     }
+    if (this.status === 'unmounted') {
+      return;
+    }
 
     const patchTask = () => {
+      if (this.status === 'unmounted') {
+        return;
+      }
       this.events.emit('patch_before');
       const nextChildren = this.patchAll(patches, newChildren);
       this.children = nextChildren.filter(Boolean) as Node[];
     };
 
-    if (this.initialized) {
+    if (this.first_render) {
+      // * sync patch (first patch)
+      patchTask();
+      this.events.emit('patch_after');
+      this.first_render = false;
+    } else {
       // * async patch
       const task = this.scheduler.runTask('patch-children', patchTask);
       task.promise.then(() => {
         this.events.emit('patch_after');
       });
-    } else {
-      // * sync patch
-      patchTask();
-      this.events.emit('patch_after');
     }
   }
 
@@ -524,9 +587,10 @@ export class View {
         }
       }
     });
+    const parentElement = this.getChildrenParentNode();
     const nextSiblingCache = {} as Record<number, Node | null>;
     const findNextSibling = (index: number): null | Node => {
-      if (!this.anchor.parentNode) {
+      if (!parentElement) {
         return null;
       }
       if (this.children.length === 0) {
@@ -538,7 +602,7 @@ export class View {
           return nextSiblingCache[current];
         }
         const child = nextChildren[current];
-        if (child && child?.parentNode === this.anchor.parentNode) {
+        if (child && child?.parentNode === parentElement) {
           nextSiblingCache[current] = child;
           return child;
         }
@@ -547,24 +611,26 @@ export class View {
       nextSiblingCache[current] = null;
       return null;
     };
-    const insertNode = (node: DiffNode, index: number) => {
+    const insertNode = (node: DiffNode, index: number, is_move = false) => {
       const nextSiblingChild = findNextSibling(index + 1);
       const nextSibling =
-        nextSiblingChild?.parentNode === this.anchor.parentNode
+        nextSiblingChild?.parentNode === parentElement
           ? nextSiblingChild
-          : this.anchor;
+          : this.anchor instanceof Text
+          ? this.anchor
+          : null;
       if (node.view) {
         // unbind new view
         node.view.parentView.children = node.view.parentView.children.filter(
           (child) => child !== node.node
         );
       }
-      if (this.anchor.parentNode) {
+      if (parentElement) {
         if (node.view) {
           node.view.parentView = this;
-          node.view.mount(this.anchor.parentNode, nextSibling);
+          node.view.mount(parentElement, nextSibling, is_move);
         } else {
-          this.anchor.parentNode.insertBefore(node.node, nextSibling);
+          parentElement.insertBefore(node.node, nextSibling);
         }
       }
     };
@@ -583,34 +649,36 @@ export class View {
       insertNode(newNode, index);
       removeNode(oldNode);
     };
-    const updateDomView = (oldDOM: DOMView, newDOM: DOMView) => {
-      oldDOM.update(newDOM.DOMProps, newDOM.DOMChildren);
-      oldDOM.DOMChildren = newDOM.DOMChildren;
-      oldDOM.DOMProps = newDOM.DOMProps;
+    const patchDomView = (oldDOM: DomView, newDOM: DomView) => {
+      oldDOM.domChildren = newDOM.domChildren;
+      oldDOM.domProps = newDOM.domProps;
+      oldDOM.updateDom();
       if (newDOM !== oldDOM) {
+        // NOTE 因为old和new共用DomChildren，如果newDom unmount会导致错误的dispose
+        // FIXME 不应该共用DomChildren，需要引入完整的vnode
         newDOM.children = [];
         newDOM.unmount();
       }
     };
-    const patchView = (oldNode: DiffNode, newNode: DiffNode, index: number) => {
+    const patchView = (oldNode: DiffNode, newNode: DiffNode) => {
       const oldView = oldNode.view!;
       const newView = newNode.view!;
-      if (oldView instanceof DOMView && newView instanceof DOMView) {
-        updateDomView(oldView, newView);
+      if (oldView instanceof DomView && newView instanceof DomView) {
+        patchDomView(oldView, newView);
         return;
       }
-      newView.initialize();
       const oldComponent = ViewComponent.view2component.get(oldView);
       const newComponent = ViewComponent.view2component.get(newView);
-      if (oldComponent && newComponent) {
+      if (
+        oldComponent &&
+        newComponent &&
+        oldComponent._component_type === newComponent._component_type
+      ) {
         oldComponent.props = newComponent.props;
         oldComponent.state = newComponent.state;
         oldComponent.children = newComponent.children;
-        oldComponent.render = newComponent.render;
+
         oldComponent.update();
-        newComponent.children = [];
-        newComponent.view.children = [];
-        newView.unmount();
       } else {
         // patch view
         oldView.updateChildren(newView.children);
@@ -622,23 +690,12 @@ export class View {
           const { to, node, newNode } = patch;
 
           if (node.view instanceof View && newNode.view instanceof View) {
-            patchView(node, newNode, to);
+            patchView(node, newNode);
           }
 
-          const nextSiblingChild = findNextSibling(to + 1);
-          const nextSibling =
-            nextSiblingChild?.parentNode === this.anchor.parentNode
-              ? nextSiblingChild
-              : this.anchor;
-          if (this.anchor.parentNode) {
-            if (node.view) {
-              node.view.parentView = this;
-              node.view.mount(this.anchor.parentNode, nextSibling);
-            } else {
-              this.anchor.parentNode.insertBefore(node.node, nextSibling);
-            }
-          }
-          newNode.view?.unmount();
+          // FIXME this not insert node, just move node, insert === mount, but move not mount
+          insertNode(node, to, true);
+          removeNode(newNode);
           break;
         }
         case 'insert': {
@@ -661,6 +718,7 @@ export class View {
           ) {
             // same key don't need to patch
             nextChildren[patch.index] = patch.oldNode.node;
+            removeNode(newNode);
             break;
           }
           const newComponent = ViewComponent.view2component.get(newNode.view!);
@@ -668,39 +726,22 @@ export class View {
           if (
             newComponent &&
             oldComponent &&
-            newComponent._component_type === oldComponent._component_type &&
-            shallowEqual(newComponent.props, oldComponent.props)
+            newComponent._component_type === oldComponent._component_type
           ) {
-            oldComponent.props = newComponent.props;
-            oldComponent.state = newComponent.state;
-            oldComponent.children = newComponent.children;
-            // TODO improve render builder to support auto context
-            const nView = newComponent.view;
-            newComponent.view = oldComponent.view;
-            oldComponent.render = newComponent.renderBuilder();
-            newComponent.view = nView;
-            oldComponent.update();
-            newComponent.children = [];
-            newComponent.view.children = [];
-            newNode.view?.unmount();
+            patchView(oldNode, newNode);
+            removeNode(newNode);
             nextChildren[patch.index] = patch.oldNode.node;
             break;
           }
 
-          // *(choice 2)update View
-          // NOTE: In order to ensure that the context of the view rendering result remains consistent (the latest render function), it cannot be updated in the form of a patch, only the entire view can be replaced
-          // Not sure if non-component view can be directly patched, this needs to be studied further
-          // patchView(oldNode, newNode, index);
-
-          // *(choice 2)replace view
           replaceNode(oldNode, newNode, index);
           break;
         }
         case 'dom-update': {
           const { newNode, oldNode, index } = patch;
-          const newView = newNode.view! as DOMView;
-          const oldView = oldNode.view! as DOMView;
-          updateDomView(oldView, newView);
+          const newView = newNode.view! as DomView;
+          const oldView = oldNode.view! as DomView;
+          patchDomView(oldView, newView);
           break;
         }
         case 'text': {
@@ -708,6 +749,12 @@ export class View {
           (oldNode.node as Text).textContent = (
             newNode.node as Text
           ).textContent;
+          break;
+        }
+        case 'patch-children': {
+          const { oldComponent, newComponent } = patch;
+          oldComponent.children = newComponent.children;
+          oldComponent.update();
           break;
         }
       }
@@ -723,10 +770,10 @@ export class View {
     return nextChildren;
   }
 
-  remove() {
+  protected remove() {
     for (const child of this.children) {
       child.parentNode?.removeChild(child);
-      const view = View.dom2view.get(child);
+      const view = View.anchor2view.get(child);
       if (view) {
         view.remove();
       }
@@ -752,6 +799,7 @@ export class View {
     this.scheduler.dispose();
     this.anchor.parentNode?.removeChild(this.anchor);
     this.unmountChildren();
+    this.status = 'unmounted';
     this.events.emit('unmounted');
     this.events.emit('unmount_after');
     this.events.removeAllListeners();
@@ -762,7 +810,7 @@ export class View {
   unmountChildren() {
     this.remove();
     for (const child of this.children) {
-      const view = View.dom2view.get(child);
+      const view = View.anchor2view.get(child);
       if (view) {
         view.unmount();
       }
@@ -814,162 +862,85 @@ export class View {
   }
 }
 
-const isStyleElement = (x: Element): x is HTMLElement =>
-  x instanceof Element && typeof (<any>x)['style'] === 'object';
-
-const is_boolean_value = (x: any) =>
-  typeof x === 'boolean' ||
-  (typeof x === 'string' &&
-    (x === '' || x.toLowerCase() === 'true' || x.toLowerCase() === 'false'));
-
-const setAttribute = (dom: Element, name: string, value: any) => {
-  if (typeof value === 'boolean' || is_boolean_value(value)) {
-    const is_true =
-      typeof value === 'boolean' ? value : value.toLowerCase() === 'true';
-    if (is_true) dom.setAttribute(name, '');
-    else dom.removeAttribute(name);
-    return;
-  }
-  switch (name) {
-    case 'className':
-    case 'class': {
-      let className = '';
-      if (Array.isArray(value)) {
-        className = value.join(' ');
-      } else if (typeof value === 'object') {
-        className = Object.entries(value)
-          .filter(([_, v]) => !!v)
-          .map(([k]) => k)
-          .join(' ');
-      } else {
-        className = String(value);
-      }
-      dom.setAttribute('class', className);
-      break;
-    }
-    case 'style': {
-      if (!isStyleElement(dom)) {
-        break;
-      }
-      if (typeof value === 'object') {
-        Object.entries(value).forEach(([k, v]) => ((dom.style as any)[k] = v));
-      } else {
-        dom.style.cssText = String(value);
-      }
-      break;
-    }
-    case 'value': {
-      (dom as any).value = value;
-      break;
-    }
-    default: {
-      dom.setAttribute(name, String(value));
-      break;
-    }
-  }
-};
-
-const unSetAttribute = (dom: Element, name: string) => {
-  switch (name) {
-    case 'className':
-    case 'class': {
-      dom.removeAttribute('class');
-      break;
-    }
-    case 'style': {
-      if (!isStyleElement(dom)) {
-        break;
-      }
-      dom.style.cssText = '';
-      break;
-    }
-    default: {
-      dom.removeAttribute(name);
-      break;
-    }
-  }
-};
-
-const unrefAttribute = (value: any): any => {
-  if (typeof value === 'function') {
-    return value();
-  }
-  if (isRef(value)) {
-    return unref(value);
-  }
-  if (Array.isArray(value)) {
-    return value.map(unrefAttribute);
-  }
-  if (typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, unrefAttribute(v)])
-    );
-  }
-  return unref(value);
-};
-
-type PropsDiffPatch = {
-  type: 'remove' | 'patch';
-  key: string;
-  value: any;
-};
-export class DOMView extends View {
+export class DomView extends View {
   elem: Node;
   props = {} as AnyRecord;
   constructor(
     tagNameOrNode: string | Node,
-    public DOMProps: AnyRecord,
-    public DOMChildren: any[]
+    public domProps: AnyRecord,
+    public domChildren: any[]
   ) {
-    super();
-
-    this.elem =
+    const elem =
       tagNameOrNode instanceof Node
         ? tagNameOrNode
         : document.createElement(tagNameOrNode);
-    this.key = DOMProps['key'];
-    delete DOMProps['key'];
+    super(elem);
 
-    View.dom2view.set(this.elem, this);
+    this.elem = elem;
+    this.key = domProps['key'];
+    delete domProps['key'];
+
+    View.anchor2view.set(this.elem, this);
+
+    this.events.once('init_before', () => {
+      // console.log('init_before', this.domChildren, domChildren);
+      this.updateChildren(this.domChildren);
+      this.updateDomProps(this.domProps);
+    });
   }
 
-  initialize() {
-    if (this.initialized) {
-      return;
-    }
-    this.events.emit('init_before');
-    this.events.emit('init');
-    this.update(this.DOMProps, this.DOMChildren);
-    this.events.emit('init_after');
-
-    this.initialized = true;
-  }
-
-  mount(parentElement: Node, insertBefore?: Node | null) {
-    this.initialize();
-    this.events.emit('mount_before', parentElement, this.parentView);
+  protected mountView(
+    parentElement: Node,
+    insertBefore?: Node | null | undefined
+  ): void {
+    if (this.elem === insertBefore) return;
     parentElement.insertBefore(this.elem, insertBefore || null);
-    this.elem.appendChild(this.anchor);
-    this.mountChildren();
-    this.events.emit('mounted', parentElement, this.parentView);
-    this.events.emit('mount_after', parentElement, this.parentView);
   }
 
-  update(props: AnyRecord, children: any[]) {
+  querySelector(selector: string): Element | null {
+    if (this.elem instanceof Element && this.elem.matches(selector)) {
+      return this.elem;
+    }
+    return super.querySelector(selector);
+  }
+
+  querySelectorAll(selector: string): Element[] {
+    const result = [] as Element[];
+    if (this.elem instanceof Element && this.elem.matches(selector)) {
+      result.push(this.elem);
+    }
+    result.push(...super.querySelectorAll(selector));
+    return result;
+  }
+
+  getChildrenParentNode() {
+    return this.elem as HTMLElement;
+  }
+
+  // NOTE: The behavior here is different from view.mountChildren, because the anchor of the DOM View is a dom element controlled by itself.
+  mountChildren(_: any, is_move = false): void {
+    super.mountChildren(this.elem, is_move);
+  }
+
+  unmount(): void {
+    this.elem.parentNode?.removeChild(this.elem);
+    Object.values(this.propsCleanups).forEach((cb) => cb());
+    this.propsCleanups = {};
+    super.unmount();
+  }
+
+  updateDom() {
     this.events.emit('update_before');
     try {
-      this.updateChildren(children);
-      if (!shallowEqual(props, this.props)) {
-        this.updateProps(props);
-        this.props = props;
-      }
+      this.updateChildren(this.domChildren);
+      this.updateDomProps(this.domProps);
       this.events.emit('updated');
     } finally {
       this.events.emit('update_after');
     }
   }
 
-  protected updateProps(props: AnyRecord) {
+  protected updateDomProps(props: AnyRecord) {
     if (shallowEqual(props, this.props)) {
       return;
     }
@@ -978,6 +949,9 @@ export class DOMView extends View {
       return;
     }
     const patchTask = () => {
+      if (this.status === 'unmounted') {
+        return;
+      }
       for (const patch of patches) {
         const { type, key, value } = patch;
         switch (type) {
@@ -994,10 +968,10 @@ export class DOMView extends View {
         }
       }
     };
-    if (this.initialized) {
-      this.scheduler.runTask('patch-task', patchTask);
-    } else {
+    if (this.first_render) {
       patchTask();
+    } else {
+      this.scheduler.runTask('patch-task', patchTask);
     }
   }
 
@@ -1145,28 +1119,6 @@ export class DOMView extends View {
         'directive'
       );
   }
-
-  mountChildren(): void {
-    const parentElement = this.elem;
-    for (const child of this.children) {
-      parentElement.insertBefore(child, this.anchor);
-      const view = View.dom2view.get(child);
-      if (view) {
-        if (view === this) {
-          throw new Error(`Cannot mount children to self`);
-        }
-        view.parentView = this;
-        view.mount(parentElement, child);
-      }
-    }
-  }
-
-  unmount(): void {
-    this.elem.parentNode?.removeChild(this.elem);
-    Object.values(this.propsCleanups).forEach((cb) => cb());
-    this.propsCleanups = {};
-    super.unmount();
-  }
 }
 
 export class ViewComponent {
@@ -1176,27 +1128,28 @@ export class ViewComponent {
 
   renderBuilder!: () => ViewRenderFunction;
   render!: ViewRenderFunction;
-  runner!: ReactiveEffectRunner;
+  update!: ReactiveEffectRunner;
 
-  view = new View();
+  // NOTE: MUST be readonly
+  readonly view = new View();
 
-  props = {} as AnyRecord;
-  state = {} as AnyRecord;
+  props!: AnyRecord;
+  state!: AnyRecord;
 
   // FIXME children type should only writeable (public)
   children = [] as any[];
 
   constructor() {
-    this.view.is_container = true;
-    this.view.events.once('unmounted', () => this.dispose());
-    this.view.events.once('init_after', () => {
-      this.view.effectScope.run(() => {
-        this.runner = effect(this.update.bind(this), {
+    const { view } = this;
+    view.is_container = true;
+    view.events.once('unmounted', () => this.dispose());
+    view.events.once('init_after', () => {
+      view.effectScope.run(() => {
+        this.update = effect(this._update.bind(this), {
           lazy: false,
-          onStop: () => this.view.events.emit('render_stop'),
-          onTrack: (event) => this.view.events.emit('render_tracked', event),
-          onTrigger: (event) =>
-            this.view.events.emit('render_triggered', event),
+          onStop: () => view.events.emit('render_stop'),
+          onTrack: (event) => view.events.emit('render_tracked', event),
+          onTrigger: (event) => view.events.emit('render_triggered', event),
         });
       });
     });
@@ -1204,30 +1157,42 @@ export class ViewComponent {
     ViewComponent.view2component.set(this.view, this);
   }
 
-  update() {
-    this.view.events.emit('update_before');
+  rerender(props = this.props, state = this.state, children = this.children) {
+    this.props = props || this.props;
+    this.state = state || this.state;
+    this.children = children || this.children;
+
+    this.update();
+  }
+
+  protected _update() {
+    const { view } = this;
+    view.events.emit('update_before');
     try {
-      const elements = this.view.effectScope.run(() =>
-        this.view.zone(
+      const elements = view.effectScope.run(() =>
+        view.zone(
           () => this.render(this.props, this.state, this.children),
           'render'
         )
       );
-      this.view.updateChildren(Array.isArray(elements) ? elements : [elements]);
-      this.view.events.emit('updated');
+      // skip() => Compatible with synchronous scheduling
+      skip(() =>
+        view.updateChildren(Array.isArray(elements) ? elements : [elements])
+      );
+      view.events.emit('updated');
     } catch (error) {
       setTimeout(() => {
         // next tick trigger
-        this.view.events.emit('error', error);
+        view.events.emit('error', error);
       });
       console.error(error);
     } finally {
-      this.view.events.emit('update_after');
+      view.events.emit('update_after');
     }
   }
 
-  dispose() {
-    this.runner?.effect.stop();
+  protected dispose() {
+    this.update?.effect.stop();
   }
 }
 
@@ -1242,17 +1207,21 @@ export type FC<P = any, S = any, C = Array<any>> = (
 
 const createFCBuilder = (fn: FunctionComponent) => {
   const build = (props: any, children: any[]) => {
-    const comp = new ViewComponent();
-    comp.props = props;
-    comp.children = children;
-    comp.view.key = props.key;
-    comp.view.events.once('init', () => {
-      comp.render = comp.view.zone(() => fn(props, comp.state, comp.children));
+    const that = new ViewComponent();
+    that.props = props || {};
+    that.state = {};
+    that.children = children;
+    that.view.key = props.key;
+    // NOTE: insert before not need to setup
+    that.view.events.once('init_before', () => {
+      that.render =
+        that.render ||
+        that.view.zone(() => fn(that.props, that.state, that.children));
     });
-    comp._component_type = fn;
-    comp.renderBuilder = () =>
-      comp.view.zone(() => fn(props, comp.state, comp.children));
-    return comp;
+    that._component_type = fn;
+    that.renderBuilder = () =>
+      that.view.zone(() => fn(that.props, that.state, that.children));
+    return that;
   };
   return build;
 };
@@ -1261,98 +1230,225 @@ export type SetupComponent<P = any, S = any, C = any[]> = {
   setup(props: P, children: C): S;
   render: ViewRenderFunction<P, S, C>;
 };
-const createSetupBuilder = (define: SetupComponent) => {
+const createSetupBuilder = (_type: SetupComponent) => {
+  const { setup, render } = _type;
   const build = (props: any, children: any[]) => {
-    const comp = new ViewComponent();
-    comp.props = props;
-    comp.children = children;
-    comp.view.key = props.key;
-    comp.view.events.once('init', () => {
-      comp.state = comp.view.zone(() => define.setup(props, children));
+    const that = new ViewComponent();
+    that.props = props || {};
+    that.children = children;
+    that.view.key = props.key;
+    // NOTE: insert before not need to setup
+    that.view.events.once('init_before', () => {
+      that.state =
+        that.state ||
+        that.view.zone(() => setup(that.props, that.children)) ||
+        {};
     });
-    comp._component_type = define;
-    comp.render = define.render;
-    comp.renderBuilder = () => define.render;
-    return comp;
+    that._component_type = _type;
+    that.render = render;
+    that.renderBuilder = () => render;
+    return that;
   };
   return build;
 };
 
-const buildComponent = (
+export const buildComponent = (
   define: SetupComponent | FunctionComponent,
   props: any,
   children: any[]
 ) => {
-  let builder: (props: AnyRecord, children: any[]) => ViewComponent;
-  if (typeof define === 'function') {
-    builder = createFCBuilder(define);
-  } else {
-    builder = createSetupBuilder(define);
-  }
+  const builder =
+    typeof define === 'function'
+      ? createFCBuilder(define)
+      : createSetupBuilder(define);
   const component = builder(props, children);
   return component;
 };
 
-export type Component<P = any, S = any, C = any[]> =
-  | FunctionComponent<P, S, C>
-  | SetupComponent<P, S, C>;
-
-export const rh = (
-  type: string | Node | FunctionComponent | SetupComponent,
-  props: any = {},
-  ...children: any[]
-): Node => {
-  props ||= {};
-  children ||= [];
-  children = children.flat(64);
-
-  if (type instanceof Node) {
-    const view = View.dom2view.get(type);
-    if (!view) {
-      new DOMView(type, props, children);
-    } else if (view instanceof DOMView) {
-      view.update(props, children);
+const anyToView = (viewType: any) => {
+  if (viewType instanceof View) {
+    return viewType;
+  }
+  if (viewType instanceof ViewComponent) {
+    return viewType.view;
+  }
+  if (viewType instanceof Node) {
+    const view = View.anchor2view.get(viewType);
+    if (view) {
+      return view;
     }
-    return type;
   }
-  if (typeof type === 'string' || type instanceof String) {
-    const domView = new DOMView(type as any, props, children);
-    return domView.elem;
-  }
-  const component = buildComponent(type, props, children);
-  return component.view.anchor;
+  return viewType;
 };
 
-export function mount(selectorOrDom: string | Element, node: Node): void;
+const normalizeCompileArgs = (viewType: any, props?: any, children?: any[]) => {
+  if (props === undefined) {
+    // if props not got, children should be undefined.
+    // (because children is rest args, so it's always not undefined, it's [])
+    children = undefined;
+  }
+  viewType = anyToView(viewType);
+  // NOTE: when args.props,args.children is undefined, should use viewType.props, viewType.children
+  const [initProps, initChildren] =
+    viewType instanceof DomView
+      ? [viewType.domProps, viewType.domChildren]
+      : viewType instanceof ViewComponent
+      ? [viewType.props, viewType.children]
+      : [{}, []];
+  props ||= initProps || {};
+  children ||= initChildren || [];
+  children = children.flat(64);
+
+  return [props, children] as const;
+};
+
+export function compile(
+  type: AllHTMLElementTagNames,
+  props?: any,
+  ...children: any[]
+): DomView;
+export function compile(
+  type: FunctionComponent,
+  props?: any,
+  ...children: any[]
+): ViewComponent;
+export function compile(
+  type: SetupComponent,
+  props?: any,
+  ...children: any[]
+): ViewComponent;
+export function compile(
+  type: Node,
+  props?: any,
+  ...children: any[]
+): DomView | View;
+export function compile(type: string, props?: any, ...children: any[]): DomView;
+export function compile(
+  type: any,
+  props?: any,
+  ...children: any[]
+): DomView | View | ViewComponent;
+export function compile(
+  viewType: any,
+  props?: any,
+  ...children: any[]
+): DomView | View | ViewComponent {
+  [props, children] = normalizeCompileArgs(viewType, props, children);
+
+  if (viewType instanceof Node) {
+    let view = View.anchor2view.get(viewType);
+    if (!view) {
+      view = new DomView(viewType, props, children);
+    }
+    if (view instanceof DomView) {
+      view.domChildren = children;
+      view.domProps = props;
+      // view.updateDom();
+    }
+    return view;
+  }
+  if (typeof viewType === 'string' || viewType instanceof String) {
+    return new DomView(viewType as any, props, children);
+  }
+  return buildComponent(viewType, props, children);
+}
+
+export function rh(
+  type: AllHTMLElementTagNames,
+  props?: any,
+  ...children: any[]
+): Node;
+export function rh(
+  type: FunctionComponent,
+  props?: any,
+  ...children: any[]
+): Node;
+export function rh(type: SetupComponent, props?: any, ...children: any[]): Node;
+export function rh(type: Component, props?: any, ...children: any[]): Node;
+export function rh(type: Node, props?: any, ...children: any[]): Node;
+export function rh(type: string, props?: any, ...children: any[]): Node;
+export function rh(
+  type: string | Node | Component,
+  props?: any,
+  ...children: any[]
+): Node;
+export function rh(
+  viewType: string | Node | Component,
+  props?: any,
+  ...children: any[]
+): Node {
+  const compiled: DomView | View | ViewComponent = compile(
+    viewType,
+    props,
+    ...children
+  );
+  if (compiled instanceof ViewComponent) {
+    return compiled.view.anchor;
+  }
+  if (compiled instanceof DomView) {
+    return compiled.elem;
+  }
+  if (compiled instanceof View) {
+    return compiled.anchor;
+  }
+  throw new Error(`Unknown type: ${String(viewType)}`);
+}
+
+export function mount(
+  selectorOrDom: string | Element,
+  node: Node,
+  props?: any,
+  children?: any[]
+): View;
 export function mount(
   selectorOrDom: string | Element,
   component: Component,
-  props?: any
+  props?: any,
+  children?: any[]
 ): ViewComponent;
 export function mount(
   selectorOrDom: string | Element,
   nodeOrComponent: Node | Component,
-  props?: any
-) {
+  props?: any,
+  children?: any[]
+): ViewComponent | View {
   const container =
     selectorOrDom instanceof Element
       ? selectorOrDom
       : document.querySelector(selectorOrDom);
-  if (!container) throw new Error('Could not find selector');
-  if (nodeOrComponent instanceof Node) {
-    const view = View.dom2view.get(nodeOrComponent);
-    if (!view) {
-      container.appendChild(nodeOrComponent);
-    } else {
-      view.mount(container);
-    }
-  } else {
-    const component = buildComponent(nodeOrComponent, props || {}, []);
-    component.view.mount(container);
-    return component;
-  }
+  if (!container) throw new Error(`Cannot find container: ${selectorOrDom}`);
+
+  const compiled = compile(nodeOrComponent, props, children);
+  const compiledView = compiled instanceof View ? compiled : compiled.view;
+  compiledView.mount(container);
+
+  return compiled;
 }
 
-export const component = <P = any, S = any, C = any[]>(
+export function component<P = any, S = any, C = any[]>(
+  define: SetupComponent<P, S, C>
+): SetupComponent<P, S, C>;
+export function component<P = any, S = any, C = any[]>(
+  define: FC<P, S, C>
+): FC<P, S, C>;
+export function component<P = any, S = any, C = any[]>(
   define: SetupComponent<P, S, C> | FC<P, S, C>
-) => define;
+): SetupComponent<P, S, C> | FC<P, S, C> {
+  return define;
+}
+
+export const useCurrentView = () => View.topView();
+export const getCurrentView = () => View.topView();
+
+/**
+ * @description Mark the component as having external effects, which will cause all diffs to be disabled when the component is rendered, and each re-rendering will be done with `replace patch`. So only use this method when necessary.
+ */
+export function markHasOutsideEffect() {
+  const view = getCurrentView();
+  if (view.zoneFlag !== 'setup') {
+    console.warn(
+      `Warning: Marking a component with outside-effect at outside "setup" zone may cause unexpected behavior.`
+    );
+  }
+  view.has_outside_effect = true;
+}
