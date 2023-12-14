@@ -3,7 +3,11 @@ import {
   NestedCSSProperties,
 } from "./CSSStyleSheet/StyleSheet";
 import { symbols } from "./constants";
-import { markHasOutsideEffect, useContextProxy } from "@rhjs/core";
+import {
+  ViewComponent,
+  markHasOutsideEffect,
+  useContextProxy,
+} from "@rhjs/core";
 import { FC, View, DomView } from "@rhjs/core";
 import {
   createEffect,
@@ -24,6 +28,61 @@ function convertToCamelCase(str: string) {
     return letter.toUpperCase();
   });
 }
+
+// wait all view mounted, include view.children
+const waitForMounted = async (view: View) => {
+  const mounted = view.status === "mounted" || view.status === "unmounted";
+  if (mounted) {
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    const handler = () => {
+      resolve();
+      view.events.off("mounted", handler);
+      view.events.off("unmounted", handler);
+    };
+    view.events.once("mounted", handler);
+    view.events.once("unmounted", handler);
+  });
+};
+const collectChildrenElements = async (view: View) => {
+  await waitForMounted(view);
+  await Promise.all(
+    view.children.map((child) =>
+      View.anchor2view.has(child)
+        ? collectChildrenElements(View.anchor2view.get(child)!)
+        : Promise.resolve()
+    )
+  );
+  const nextElements = new Set<Element>();
+  if (view instanceof DomView) {
+    nextElements.add(view.elem as Element);
+  }
+  for (const child_node of view.children) {
+    if (
+      child_node instanceof Element &&
+      ["style", "script", "template"].every(
+        (tag) => child_node.localName !== tag
+      )
+    ) {
+      nextElements.add(child_node);
+    }
+    const view = View.anchor2view.get(child_node);
+    if (!view) {
+      continue;
+    }
+    if (ViewComponent.view2component.has(view)) {
+      // ignore view component
+      continue;
+    }
+    // add non-component view children
+    const elements = await collectChildrenElements(view);
+    for (const node of elements) {
+      nextElements.add(node);
+    }
+  }
+  return nextElements;
+};
 
 type StyleFn = (contextProxy: any) => NestedCSSProperties;
 type StyleComponentProps = {
@@ -117,13 +176,17 @@ const connectSubElements = (options: ConnectStyleSheetOptions) => {
   if (!scopedId) {
     return;
   }
+  // collectChildrenElements is async function, so we need to use a flag to prevent unmounted
+  let unmounted = false;
+
   const scopedKey = convertToCamelCase(`s-${scopedId}`);
 
   let parentView: View | null = null;
   let parentNode: Node | null = null;
-  let elements = new Set<Node>();
+  let elements = new Set<Element>();
 
   const installToDOM = (node: any) => {
+    if (unmounted) return;
     if (node && "dataset" in node && typeof node["dataset"] === "object") {
       node.dataset[scopedKey] = "";
     }
@@ -134,31 +197,11 @@ const connectSubElements = (options: ConnectStyleSheetOptions) => {
     }
   };
 
-  const updateElements = () => {
-    const nextElements = new Set<Node>();
-    const collectElements = (view?: View | null) => {
-      if (!view) {
-        return;
-      }
-      if (view !== parentView && view.is_container) {
-        return;
-      }
-      if (view instanceof DomView) {
-        nextElements.add(view.elem);
-      }
-      for (const child of view.children) {
-        const childView = View.anchor2view.get(child);
-        if (childView) {
-          collectElements(childView);
-        } else {
-          if (child instanceof Element) {
-            nextElements.add(child);
-          }
-        }
-      }
-    };
-    collectElements(parentView);
-
+  const updateElements = async () => {
+    if (!parentView) {
+      return;
+    }
+    const nextElements = await collectChildrenElements(parentView);
     for (const node of nextElements) {
       installToDOM(node);
     }
@@ -181,6 +224,7 @@ const connectSubElements = (options: ConnectStyleSheetOptions) => {
     updateElements();
   });
   onUnmounted(() => {
+    unmounted = true;
     uninstallToDOM(parentNode);
     for (const node of elements) {
       uninstallToDOM(node);
