@@ -1,0 +1,45 @@
+{
+  "name": "@rhjs/hyper",
+  "amdName": "rh-hyper",
+  "version": "0.3.0",
+  "description": "",
+  "source": "src/main.ts",
+  "main": "dist/main.umd.js",
+  "module": "dist/main.module.mjs",
+  "unpkg": "dist/main.umd.js",
+  "types": "./dist/main.d.ts",
+  "exports": {
+    "types": "./dist/main.d.ts",
+    "require": "./dist/main.js",
+    "default": "./dist/main.modern.mjs"
+  },
+  "scripts": {
+    "build-dts": "rollup -c rollup.dts.config.js",
+    "build-js": "microbundle --globals @rhjs/core=rh,@rhjs/builtin=rh-builtin --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
+    "build": "pnpm build-js && pnpm build-dts",
+    "watch": "microbundle --globals @rhjs/core=rh,@rhjs/builtin=rh-builtin watch --define process.env.NODE_ENV=development,PKG_VERSION=$npm_package_version --compress false",
+    "dev": "pnpm watch",
+    "start": "pnpm build",
+    "prepack": "rm -rf dist && pnpm run build && pnpm run build-dts",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@rhjs/core": "workspace:^",
+    "@rhjs/hooks": "workspace:^"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.2",
+    "jest": "^29.5.0",
+    "microbundle": "^0.15.1",
+    "rollup": "^3.21.6",
+    "rollup-plugin-dts": "^5.3.0",
+    "ts-jest": "^29.1.0"
+  }
+}
