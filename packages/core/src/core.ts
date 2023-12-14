@@ -709,18 +709,6 @@ export class View {
         }
         case 'view-patch': {
           const { newNode, oldNode, index } = patch;
-          if (
-            oldNode.view?.key !== undefined &&
-            newNode.view?.key !== undefined &&
-            oldNode.view?.key !== null &&
-            newNode.view?.key !== null &&
-            newNode.view.key === oldNode.view.key
-          ) {
-            // same key don't need to patch
-            nextChildren[patch.index] = patch.oldNode.node;
-            removeNode(newNode);
-            break;
-          }
           const newComponent = ViewComponent.view2component.get(newNode.view!);
           const oldComponent = ViewComponent.view2component.get(oldNode.view!);
           if (
@@ -1085,39 +1073,39 @@ export class DomView extends View {
       return;
     }
     const { mounted, unmounted, updated } = directive;
-    mounted &&
-      this.events.once(
-        'mounted',
-        () => {
-          this.effectScope.run(() => {
-            const cleanup = this.zone(() => mounted(this.elem, value, this));
-            cleanup && this.addPropCleanup(key, cleanup);
-          });
-        },
-        'directive'
-      );
-    unmounted &&
-      this.events.once(
-        'unmounted',
-        () => {
-          this.effectScope.run(() => {
-            const cleanup = this.zone(() => unmounted(this.elem, value, this));
-            cleanup && this.addPropCleanup(key, cleanup);
-          });
-        },
-        'directive'
-      );
-    updated &&
-      this.events.on(
-        'updated',
-        () => {
-          this.effectScope.run(() => {
-            const cleanup = this.zone(() => updated(this.elem, value, this));
-            cleanup && this.addPropCleanup(key, cleanup);
-          });
-        },
-        'directive'
-      );
+    const scope_event_hook =
+      (
+        callback?:
+          | DirectiveDefine['mounted']
+          | DirectiveDefine['unmounted']
+          | DirectiveDefine['updated']
+      ) =>
+      () => {
+        if (!callback) return;
+        this.effectScope.run(() => {
+          const cleanup = this.zone(() => callback(this.elem, value, this));
+          cleanup && this.addPropCleanup(key, cleanup);
+        });
+      };
+    const scoped_on_mounted = scope_event_hook(mounted);
+    const scoped_on_unmounted = scope_event_hook(unmounted);
+    const scoped_on_updated = scope_event_hook(updated);
+
+    if (this.status === 'unmounted') {
+      scoped_on_unmounted();
+      return; // NOTE: unmounted => no need to setup
+    } else {
+      this.events.once('unmounted', scoped_on_unmounted, 'directive');
+    }
+
+    if (this.status === 'mounted') {
+      scoped_on_updated();
+      scoped_on_mounted();
+    } else {
+      this.events.once('mounted', scoped_on_mounted, 'directive');
+    }
+
+    this.events.on('updated', scoped_on_updated, 'directive');
   }
 }
 
@@ -1157,7 +1145,7 @@ export class ViewComponent {
     ViewComponent.view2component.set(this.view, this);
   }
 
-  rerender(props = this.props, state = this.state, children = this.children) {
+  patch(props = this.props, state = this.state, children = this.children) {
     this.props = props || this.props;
     this.state = state || this.state;
     this.children = children || this.children;
