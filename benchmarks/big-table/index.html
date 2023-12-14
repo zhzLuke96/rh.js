@@ -17,6 +17,7 @@
         "imports": {
           "@rhjs/core": "../../packages/core/dist/main.module.mjs",
           "@rhjs/builtin": "../../packages/builtin/dist/main.module.mjs",
+          "@rhjs/hooks": "../../packages/hooks/dist/main.module.mjs",
           "@rhjs/tag": "../../packages/tag/dist/main.module.mjs"
         }
       }
@@ -25,19 +26,9 @@
   <body>
     <div id="app"></div>
     <script type="module">
-      import {
-        rh,
-        mount,
-        ref,
-        shallowRef,
-        createMemo,
-        unref,
-        untrack,
-        depend,
-        createWatcher,
-        memoView,
-      } from "@rhjs/core";
-      import { Fragment, For } from "@rhjs/builtin";
+      import { rh, mount, ref, shallowRef, unref, untrack } from "@rhjs/core";
+      import { createMemo, depend, createWatcher } from "@rhjs/hooks";
+      import { Fragment, For, memoView } from "@rhjs/builtin";
       import { text } from "@rhjs/tag";
 
       var ROWS = 1000;
