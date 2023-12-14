@@ -22,8 +22,6 @@
     "prepack": "rm -rf dist && pnpm run build && pnpm run build-dts"
   },
   "keywords": [],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "@rhjs/core": "workspace:^"
   },
@@ -33,5 +31,25 @@
     "microbundle": "^0.15.1",
     "rollup": "^3.26.0",
     "rollup-plugin-dts": "^5.3.0"
-  }
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "files": [
+    "dist/**.js*",
+    "dist/**.mjs*",
+    "dist/**/*.ts",
+    "types/**/*.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhzLuke96/rh.js.git"
+  },
+  "author": "zhzluke96",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/zhzLuke96/rh.js/issues"
+  },
+  "homepage": "https://github.com/zhzLuke96/rh.js#readme"
 }

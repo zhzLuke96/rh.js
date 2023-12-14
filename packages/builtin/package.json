@@ -1,7 +1,7 @@
 {
   "name": "@rhjs/builtin",
   "amdName": "rh-builtin",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
@@ -14,12 +14,6 @@
     "default": "./dist/main.modern.mjs"
   },
   "keywords": [],
-  "files": [
-    "dist/**.js*",
-    "dist/**.mjs*",
-    "dist/**/*.ts",
-    "types/**/*.ts"
-  ],
   "scripts": {
     "build-dts": "rollup -c rollup.dts.config.js",
     "build-js": "microbundle --globals @rhjs/core=rh --define process.env.NODE_ENV=production,PKG_VERSION=$npm_package_version",
@@ -30,8 +24,6 @@
     "prepack": "rm -rf dist && pnpm run build && pnpm run build-dts",
     "release": "pnpm run prepack && pnpm publish --access public"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "@rhjs/core": "workspace:^",
     "@rhjs/hooks": "workspace:^"
@@ -46,5 +38,21 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "access": "public"
-  }
+  },
+  "files": [
+    "dist/**.js*",
+    "dist/**.mjs*",
+    "dist/**/*.ts",
+    "types/**/*.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhzLuke96/rh.js.git"
+  },
+  "author": "zhzluke96",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/zhzLuke96/rh.js/issues"
+  },
+  "homepage": "https://github.com/zhzLuke96/rh.js#readme"
 }

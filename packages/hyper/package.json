@@ -1,7 +1,7 @@
 {
   "name": "@rhjs/hyper",
   "amdName": "rh-hyper",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "",
   "source": "src/main.ts",
   "main": "dist/main.umd.js",
@@ -24,8 +24,6 @@
     "test": "jest"
   },
   "keywords": [],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "@rhjs/core": "workspace:^",
     "@rhjs/hooks": "workspace:^"
@@ -34,6 +32,22 @@
     "registry": "https://registry.npmjs.org",
     "access": "public"
   },
+  "files": [
+    "dist/**.js*",
+    "dist/**.mjs*",
+    "dist/**/*.ts",
+    "types/**/*.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhzLuke96/rh.js.git"
+  },
+  "author": "zhzluke96",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/zhzLuke96/rh.js/issues"
+  },
+  "homepage": "https://github.com/zhzLuke96/rh.js#readme",
   "devDependencies": {
     "@types/jest": "^29.5.2",
     "jest": "^29.5.0",
