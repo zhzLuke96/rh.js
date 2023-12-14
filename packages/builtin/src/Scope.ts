@@ -1,6 +1,7 @@
 import { symbols } from "./constants";
-import { useContextProxy } from "@rhjs/core";
-import { FC, InlineRender, rh, useCurrentView, View } from "@rhjs/core";
+import { getCurrentView, useContextProxy } from "@rhjs/core";
+import { FC, InlineRender, rh, View } from "@rhjs/core";
+import { onUnmounted } from "@rhjs/hooks";
 
 type ScopeProps = {
   tagName?: keyof HTMLElementTagNameMap;
@@ -35,15 +36,19 @@ export const Scope: FC<ScopeProps> = (
   const shadowRoot = (<HTMLElement>shadowHost).attachShadow({ mode: "open" });
   setupScopeContext(shadowRoot);
 
-  const scopeView = useCurrentView();
-  rh(shadowRoot, {}, children);
-  const view = View.dom2view.get(shadowRoot);
-  if (view) {
-    shadowRoot.appendChild(view.anchor);
-    view.parentView = scopeView;
-    view.initialize();
-  }
-  return () => shadowHost;
+  const scopeView = getCurrentView();
+  const shadowView = new View();
+  shadowView.parentView = scopeView;
+
+  shadowView.mount(shadowRoot);
+  onUnmounted(() => {
+    shadowView.unmount();
+  });
+
+  return (_1, _2, children) => {
+    shadowView.updateChildren(children);
+    return shadowHost;
+  };
 };
 
 export const getRootNode = (): DocumentOrShadowRoot & Node => {

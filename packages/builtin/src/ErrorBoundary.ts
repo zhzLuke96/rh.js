@@ -1,11 +1,6 @@
 import { ref } from "@rhjs/core";
-import {
-  component,
-  InlineRender,
-  InlineRenderResult,
-  onError,
-  skip,
-} from "@rhjs/core";
+import { component, InlineRender, InlineRenderResult, skip } from "@rhjs/core";
+import { onError } from "@rhjs/hooks";
 
 /**
  * Error Boundary

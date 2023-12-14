@@ -1,11 +1,6 @@
-import {
-  createEffect,
-  DirectiveDefine,
-  onMounted,
-  onUnmounted,
-  reactive,
-} from "@rhjs/core";
+import { reactive, DirectiveDefine } from "@rhjs/core";
 import { shallowEqual } from "../internal/shallowEqual";
+import { createEffect, onMounted, onUnmounted } from "@rhjs/hooks";
 
 type DOMState = {
   active: boolean;

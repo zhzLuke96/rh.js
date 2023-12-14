@@ -1,35 +1,39 @@
-import {
-  FC,
-  markHasOutsideEffect,
-  onUnmounted,
-  rh,
-  View,
-  weakMount,
-} from "@rhjs/core";
+import { FC, View, mount, compile, DomView, getCurrentView } from "@rhjs/core";
+import { onMounted, onUnmounted } from "@rhjs/hooks";
 
 /**
  * Portal Component
  */
 export const Portal: FC<{
-  node?: any;
+  node?: Node | string;
   [K: string]: any;
 }> = ({ node, ...props }, state: any, children: any[]) => {
-  // 因为 Portal 如果需要patch，他是感知不到weakMount的，所以直接标记有副作用
-  markHasOutsideEffect();
+  const container_view = compile(node || "div", props);
+  if (!(container_view instanceof DomView)) {
+    throw new Error(
+      `node must be a valid dom node or tagName, but got ${typeof node}`
+    );
+  }
+  const container = container_view.elem;
 
-  const container: Element = node || document.createElement("div");
-
-  const mount_on_self_container = !node;
-  if (mount_on_self_container) {
-    document.body.appendChild(container);
-    onUnmounted(() => container.parentNode?.removeChild(container));
+  if (!container.parentNode) {
+    onMounted(() => {
+      mount(document.body, container, props);
+    });
   }
 
-  const anchor = weakMount(() => rh("div", props, ...children));
-  const view = anchor && View.dom2view.get(anchor);
-  if (view) {
-    view.mount(container);
-  }
+  const currentView = getCurrentView();
+  const portalView = new View();
+  portalView.parentView = currentView;
+  portalView.mount(container);
 
-  return () => null;
+  onUnmounted(() => {
+    portalView.unmount();
+    container_view.unmount();
+  });
+
+  return (_1, _2, children) => {
+    portalView.updateChildren(children);
+    return null;
+  };
 };

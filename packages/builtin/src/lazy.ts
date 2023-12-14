@@ -24,7 +24,9 @@ export const lazy = <ComponentExport extends Component>(
       view.events.emit("throw", promise);
     }
     return () =>
-      moduleRef.value ? rh(moduleRef.value.default, props, ...children) : null;
+      moduleRef.value?.default
+        ? rh(moduleRef.value.default, props, ...children)
+        : null;
   }) as unknown as ComponentExport;
 
   return fnComponent;

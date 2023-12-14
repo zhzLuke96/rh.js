@@ -1,4 +1,4 @@
-import { ref as _ref, Ref, UnwrapRef } from "@rhjs/core";
+import { ref as _ref, unref as _unref, Ref, UnwrapRef } from "@rhjs/core";
 
 const VALUE_SYMBOL = Symbol("value");
 const is_primitive = (value: any) => value !== Object(value);
@@ -36,6 +36,7 @@ export function baseRef<T>(
   const is_primitive_value = is_primitive(value);
 
   const _obj = {
+    _v_isRef: true,
     valueOf() {
       return ref_obj.value;
     },
@@ -134,5 +135,8 @@ export function mutate<T>(ref_obj: ReactiveValue<T>, value: T) {
  * unref ref
  */
 export function unref<T>(ref_obj: ReactiveValue<T>): T {
-  return ref_obj[VALUE_SYMBOL];
+  if (VALUE_SYMBOL in ref_obj) {
+    return ref_obj[VALUE_SYMBOL];
+  }
+  return _unref(ref_obj);
 }

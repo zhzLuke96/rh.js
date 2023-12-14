@@ -1,15 +1,22 @@
 import { isRef, shallowRef, triggerRef, unref } from "@rhjs/core";
-import {
-  createEffect,
-  createMemo,
-  InlineRenderResult,
-  MaybeRefOrGetter,
-  untrack,
-} from "@rhjs/core";
+import { InlineRenderResult, MaybeRefOrGetter, untrack } from "@rhjs/core";
 import { shallowEqual } from "./internal/shallowEqual";
 import { clonePlainDeep } from "./internal/clonePlainDeep";
+import { createEffect, createMemo } from "@rhjs/hooks";
 
-const defaultNeedUpdate = (a: any, b: any) => !shallowEqual(a, b);
+const defaultNeedUpdate = ({
+  index,
+  data,
+  prev_data,
+  array,
+  prev_array,
+}: {
+  index: number;
+  data: any;
+  prev_data: any;
+  array: any[];
+  prev_array: any[];
+}) => !shallowEqual(data, prev_data) || array.length !== prev_array.length;
 
 export const For = <T>(
   {
@@ -18,7 +25,13 @@ export const For = <T>(
     snapshotItem = clonePlainDeep,
   }: {
     each: MaybeRefOrGetter<T[]>;
-    needUpdate?: (data: T, prev: T) => boolean;
+    needUpdate?: (params: {
+      index: number;
+      data: T;
+      prev_data: T;
+      array: T[];
+      prev_array: T[];
+    }) => boolean;
     snapshotItem?: (data: T, index: number, array: T[]) => T;
   },
   state: any,
@@ -60,17 +73,29 @@ export const For = <T>(
     };
     triggerRef(itemsViewRef);
   };
+
   createEffect(() => {
     const nextItemsView = [] as {
       item: T;
       view: InlineRenderResult;
     }[];
     const itemsValue = unref(items);
+    const prevItems = untrack(itemsViewRef);
+    const prevArray = prevItems.map((x) => x.item);
     for (let index = 0; index < itemsValue.length; index++) {
       const item = itemsValue[index];
-      const view = untrack(itemsViewRef)[index];
+      const view = prevItems[index];
 
-      if (view && !needUpdate(item, view.item)) {
+      if (
+        view &&
+        !needUpdate({
+          index,
+          data: item,
+          prev_data: view.item,
+          array: itemsValue,
+          prev_array: prevArray,
+        })
+      ) {
         nextItemsView.push(view);
         continue;
       }

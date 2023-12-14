@@ -3,19 +3,15 @@ import {
   NestedCSSProperties,
 } from "./CSSStyleSheet/StyleSheet";
 import { symbols } from "./constants";
-import { useContextProxy } from "@rhjs/core";
+import { markHasOutsideEffect, useContextProxy } from "@rhjs/core";
+import { FC, View, DomView } from "@rhjs/core";
 import {
   createEffect,
   onUnmounted,
-  FC,
   onBeforeMount,
-  useCurrentView,
-  View,
   onMounted,
-  DOMView,
   onAfterUpdate,
-  markHasOutsideEffect,
-} from "@rhjs/core";
+} from "@rhjs/hooks";
 
 const randomKey = () =>
   Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(36);
@@ -147,11 +143,11 @@ const connectSubElements = (options: ConnectStyleSheetOptions) => {
       if (view !== parentView && view.is_container) {
         return;
       }
-      if (view instanceof DOMView) {
+      if (view instanceof DomView) {
         nextElements.add(view.elem);
       }
       for (const child of view.children) {
-        const childView = View.dom2view.get(child);
+        const childView = View.anchor2view.get(child);
         if (childView) {
           collectElements(childView);
         } else {

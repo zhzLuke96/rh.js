@@ -6,6 +6,12 @@ export * from "./Suspense";
 export * from "./Scope";
 export * from "./For";
 export * from "./lazy";
+export * from "./KeepAlive";
+
+export * from "./AsyncView";
+export * from "./memoView";
 
 export * from "./directives";
 export * from "./reactivity";
+
+export * from "./tags";
