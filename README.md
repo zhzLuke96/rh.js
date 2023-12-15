@@ -96,7 +96,7 @@ document.body.append(
 </script>
 ```
 
-> online in [codesandbox](https://codesandbox.io/s/vibrant-microservice-rw3kv4?file=/src/index.js)
+> online in [codesandbox](https://codesandbox.io/p/sandbox/rh-js-hello-world-rw3kv4?file=%2Fsrc%2Findex.js)
 
 # TRY IT
 - playground: https://zhzluke96.github.io/rhjs-playground/
