@@ -25,8 +25,11 @@ export function asyncView<ARGS extends any[]>(
     skip(async () => {
       const iter = asyncRender(...args);
       while (is_unmounted === false) {
-        const children = await iter.next();
-        viewRef.value = children.value;
+        const result = await iter.next();
+        viewRef.value = result.value;
+        if (result.done) {
+          return;
+        }
         await new Promise((resolve) => setTimeout(resolve));
       }
     });
