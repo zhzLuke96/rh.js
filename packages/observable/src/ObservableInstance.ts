@@ -8,11 +8,22 @@ const is_observer = (value: any): value is IObservable<any> =>
 const is_promise_like = (value: any): value is PromiseLike<any> =>
   typeof value === "object" && typeof value.then === "function";
 
+const is_iterable = (obj: any): obj is Iterator<unknown> & Iterable<any> =>
+  obj != null &&
+  (typeof obj[Symbol.iterator] === "function" ||
+    typeof obj[Symbol.asyncIterator] === "function");
+
 // 这里有类型问题...ts没法实现callable的类型，所以没法implements...
 // 并且很多返回都需要写成as any...
 // implements IObservable<T>
 export class Observable<T> extends ExtensibleFunction {
   static of<T extends PromiseLike<any>>(value: T): IObservable<Awaited<T>>;
+  static of<T extends Iterator<any>>(
+    value: T
+  ): IObservable<T extends Iterator<infer P> ? Awaited<P> : never>;
+  static of<T extends AsyncIterator<any>>(
+    value: T
+  ): IObservable<T extends AsyncIterator<infer P> ? Awaited<P> : never>;
   static of<T extends Array<any>>(value: T): IObservable<T[number]>;
   static of<T extends Set<any>>(
     value: T
@@ -28,6 +39,16 @@ export class Observable<T> extends ExtensibleFunction {
       if ("catch" in value && typeof value.catch === "function") {
         value.catch((error: any) => observable.complete(error));
       }
+      return observable as any as IObservable<T>;
+    }
+    if (is_iterable(value)) {
+      const observable = new Observable(value.next().value);
+      (async () => {
+        for await (const item of value) {
+          observable.next(item);
+        }
+        observable.complete();
+      })();
       return observable as any as IObservable<T>;
     }
     if (Array.isArray(value)) {
