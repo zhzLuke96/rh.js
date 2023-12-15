@@ -15,6 +15,7 @@ import {
   AnyRecord,
   ViewRenderFunction,
   ComponentArguments,
+  ViewRenderResult,
 } from './types';
 import { skip } from './reactivity';
 import { unrefAttribute, unSetAttribute } from './utils';
@@ -1114,7 +1115,6 @@ export class ViewComponent {
 
   _component_type!: FunctionComponent | SetupComponent;
 
-  renderBuilder!: () => ViewRenderFunction;
   render!: ViewRenderFunction;
   update!: ReactiveEffectRunner;
 
@@ -1185,7 +1185,9 @@ export class ViewComponent {
 }
 
 export type FunctionComponent<P = any, S = any, C = any[]> = {
-  (...args: ComponentArguments<P, S, C>): ViewRenderFunction<P, S, C>;
+  (...args: ComponentArguments<P, S, C>):
+    | ViewRenderFunction<P, S, C>
+    | ViewRenderResult;
 };
 export type FC<P = any, S = any, C = Array<any>> = (
   props: P,
@@ -1202,13 +1204,16 @@ const createFCBuilder = (fn: FunctionComponent) => {
     that.view.key = props.key;
     // NOTE: insert before not need to setup
     that.view.events.once('init_before', () => {
-      that.render =
-        that.render ||
-        that.view.zone(() => fn(that.props, that.state, that.children));
+      const setup_result = that.view.zone(() =>
+        fn(that.props, that.state, that.children)
+      );
+      if (typeof setup_result === 'function') {
+        that.render = setup_result;
+      } else {
+        that.render = () => setup_result;
+      }
     });
     that._component_type = fn;
-    that.renderBuilder = () =>
-      that.view.zone(() => fn(that.props, that.state, that.children));
     return that;
   };
   return build;
@@ -1234,7 +1239,6 @@ const createSetupBuilder = (_type: SetupComponent) => {
     });
     that._component_type = _type;
     that.render = render;
-    that.renderBuilder = () => render;
     return that;
   };
   return build;
