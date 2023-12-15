@@ -1,5 +1,5 @@
-# @rhjs/tag
+# @rhjs/hyper
 
-@rhjs/tag
+@rhjs/hyper
 
 
