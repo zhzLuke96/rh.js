@@ -2,7 +2,6 @@ import {
   pauseTracking,
   resetTracking,
   enableTracking,
-  unref,
   MaybeRefOrGetter,
 } from '@vue/reactivity';
 
@@ -29,5 +28,8 @@ export function unskip<T, ARGS extends any[]>(
   }
 }
 
+export const unrefx = <T>(target: T): T extends { value: infer P } ? P : T =>
+  (target as any)?.value;
+
 export const untrack = <T>(value: MaybeRefOrGetter<T>): T =>
-  typeof value === 'function' ? skip(value as any) : (skip(unref, value) as T);
+  typeof value === 'function' ? skip(value as any) : (skip(unrefx, value) as T);
