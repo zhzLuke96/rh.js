@@ -1,9 +1,21 @@
-import { DeepReadonly, Ref, UnwrapRef, untrack } from "@rhjs/core";
+import {
+  DeepReadonly,
+  Ref,
+  UnwrapRef,
+  untrack,
+  isRef,
+  unref,
+} from "@rhjs/core";
 import { ExtensibleFunction } from "./ExtensibleFunction";
-import { IObservable, IS_OBSERVABLE, NONE } from "./types";
-import { StateMutator, StateOptions, createState } from "@rhjs/hooks";
+import { Observable, IS_OBSERVABLE, NONE } from "./types";
+import {
+  StateMutator,
+  StateOptions,
+  createEffect,
+  createState,
+} from "@rhjs/hooks";
 
-const is_observer = (value: any): value is IObservable<any> =>
+const is_observer = (value: any): value is Observable<any> =>
   typeof value === "function" && value[IS_OBSERVABLE];
 const is_promise_like = (value: any): value is PromiseLike<any> =>
   typeof value === "object" && typeof value.then === "function";
@@ -16,54 +28,93 @@ const is_iterable = (obj: any): obj is Iterator<unknown> & Iterable<any> =>
 // 这里有类型问题...ts没法实现callable的类型，所以没法implements...
 // 并且很多返回都需要写成as any...
 // implements IObservable<T>
-export class Observable<T> extends ExtensibleFunction {
-  static of<T extends PromiseLike<any>>(value: T): IObservable<Awaited<T>>;
+export class ObservableImpl<T> extends ExtensibleFunction {
+  static of<T extends PromiseLike<any>>(value: T): Observable<Awaited<T>>;
   static of<T extends Iterator<any>>(
     value: T
-  ): IObservable<T extends Iterator<infer P> ? Awaited<P> : never>;
+  ): Observable<T extends Iterator<infer P> ? Awaited<P> : never>;
   static of<T extends AsyncIterator<any>>(
     value: T
-  ): IObservable<T extends AsyncIterator<infer P> ? Awaited<P> : never>;
-  static of<T extends Array<any>>(value: T): IObservable<T[number]>;
+  ): Observable<T extends AsyncIterator<infer P> ? Awaited<P> : never>;
+  static of<T extends Array<any>>(value: T): Observable<T[number]>;
   static of<T extends Set<any>>(
     value: T
-  ): IObservable<T extends Set<infer P> ? P : never>;
-  static of<T>(value: T): IObservable<T>;
-  static of<T>(value: T): IObservable<any> {
+  ): Observable<T extends Set<infer P> ? P : never>;
+  static of<T extends Ref<any>>(
+    value: T
+  ): Observable<T extends Ref<infer P> ? P : never>;
+  static of<T>(value: T): Observable<T>;
+  static of<T>(value?: T): Observable<T>;
+  static of<T>(value?: T): Observable<any> {
     if (is_observer(value)) {
       return value;
     }
     if (is_promise_like(value)) {
-      const observable = new Observable(null);
+      const observable = new ObservableImpl(null);
       value.then((value) => observable.complete(value));
       if ("catch" in value && typeof value.catch === "function") {
         value.catch((error: any) => observable.complete(error));
       }
-      return observable as any as IObservable<T>;
+      return observable as any as Observable<T>;
     }
     if (is_iterable(value)) {
-      const observable = new Observable(value.next().value);
+      const observable = new ObservableImpl(value.next().value);
       (async () => {
         for await (const item of value) {
           observable.next(item);
         }
         observable.complete();
       })();
-      return observable as any as IObservable<T>;
+      return observable as any as Observable<T>;
+    }
+    if (isRef(value)) {
+      const observable = new ObservableImpl(value.value);
+      createEffect(() => {
+        observable.next(unref(value));
+      });
+      return observable as any as Observable<T>;
     }
     if (Array.isArray(value)) {
-      const observable = new Observable(value[0]);
+      const observable = new ObservableImpl(value[0]);
       value.forEach((value) => observable.next(value));
       observable.complete();
-      return observable as any as IObservable<T>;
+      return observable as any as Observable<T>;
     }
     if (value instanceof Set) {
-      const observable = new Observable(value.values().next().value);
+      const observable = new ObservableImpl(value.values().next().value);
       value.forEach((value) => observable.next(value));
       observable.complete();
-      return observable as any as IObservable<T>;
+      return observable as any as Observable<T>;
     }
-    return new Observable(value) as any;
+    return new ObservableImpl(value) as any;
+  }
+
+  static fromEvent<K extends keyof HTMLElementEventMap>(
+    target: Element,
+    type: K
+  ): Observable<HTMLElementEventMap[K]>;
+  static fromEvent<K extends keyof HTMLElementEventMap, T>(
+    target: Element,
+    type: K,
+    selector: (event: HTMLElementEventMap[K]) => T
+  ): Observable<T>;
+  static fromEvent<K extends keyof HTMLElementEventMap, T>(
+    target: Element,
+    type: K,
+    selector?: (event: HTMLElementEventMap[K]) => T
+  ): Observable<T>;
+  static fromEvent<K extends keyof HTMLElementEventMap, T>(
+    target: Element,
+    type: K,
+    selector?: (event: HTMLElementEventMap[K]) => T
+  ): Observable<any> {
+    const observable = new ObservableImpl<T | any>(null);
+    target.addEventListener(type, (event) => {
+      observable.next(
+        selector ? selector(event as any) : (event as unknown as T)
+      );
+    });
+    return observable as any;
   }
 
   [IS_OBSERVABLE] = true as const;
@@ -76,8 +127,11 @@ export class Observable<T> extends ExtensibleFunction {
 
   completed = false;
 
-  constructor(readonly initialState: T, readonly options?: StateOptions<T>) {
-    const [data, setter] = createState(initialState, options);
+  constructor(
+    readonly initialState: T = NONE as T,
+    readonly options?: StateOptions<T>
+  ) {
+    const [data, setter] = createState(undefined as any, options);
     super((value: any = NONE) => {
       if (value === NONE) {
         return data.value;
@@ -94,6 +148,10 @@ export class Observable<T> extends ExtensibleFunction {
     });
     this._state = data;
     this._setter = setter;
+
+    if (initialState !== NONE) {
+      this.next(initialState);
+    }
   }
 
   get value(): T {
@@ -154,15 +212,13 @@ export class Observable<T> extends ExtensibleFunction {
 
   scan<U>(
     fn: (acc: U | undefined, value: T, index: number) => U
-  ): IObservable<U>;
+  ): Observable<U>;
   scan<U>(
     fn: (acc: U, value: T, index: number) => U,
     initial: U
-  ): IObservable<U>;
-  scan(fn: Function, initial?: unknown): IObservable<any> {
-    const observable = new Observable(
-      typeof initial === "undefined" ? this.value : initial
-    );
+  ): Observable<U>;
+  scan(fn: Function, initial?: unknown): Observable<any> {
+    const observable = new ObservableImpl(initial);
     let acc = typeof initial === "undefined" ? this.value : initial;
     let index = 0;
     this.subscribe((value) => {
@@ -175,17 +231,17 @@ export class Observable<T> extends ExtensibleFunction {
   }
   reduce<U>(
     fn: (acc: U | undefined, value: T, index: number) => U
-  ): IObservable<U>;
+  ): Observable<U>;
   reduce<U>(
     fn: (acc: U, value: T, index: number) => U,
     initial: U
-  ): IObservable<U>;
-  reduce(fn: Function, initial?: unknown): IObservable<any> {
+  ): Observable<U>;
+  reduce(fn: Function, initial?: unknown): Observable<any> {
     return this.scan(fn as any, initial).last();
   }
 
-  take(count: number): IObservable<T> {
-    const observable = new Observable(this.value);
+  take(count: number): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     let taken = 0;
     this.subscribe((value) => {
       if (taken < count) {
@@ -197,23 +253,23 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  first(): IObservable<T> {
-    const observable = new Observable(this.value);
+  first(): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     this.subscribe((value) => observable.complete(value));
     return observable as any;
   }
-  last(): IObservable<T> {
-    const observable = new Observable(this.value);
+  last(): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     this.finally((value) => observable.complete(value));
     return observable as any;
   }
 
-  map<U>(fn: (value: T) => U): IObservable<U> {
+  map<U>(fn: (value: T) => U): Observable<U> {
     return this.scan((_, value) => fn(value));
   }
 
-  filter(fn: (value: T) => boolean): IObservable<T> {
-    const observable = new Observable(this.value);
+  filter(fn: (value: T) => boolean): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     this.subscribe((value) => {
       if (fn(value)) {
         observable.next(value);
@@ -223,12 +279,12 @@ export class Observable<T> extends ExtensibleFunction {
     return observable as any;
   }
 
-  toArray(): IObservable<T[]> {
+  toArray(): Observable<T[]> {
     return this.reduce((acc: T[], value: T) => [...acc, value], []);
   }
 
-  window(count: number): IObservable<IObservable<T>> {
-    const observable = new Observable(new Observable(this.value));
+  window(count: number): Observable<Observable<T>> {
+    const observable = new ObservableImpl(new ObservableImpl(this.value));
     let window = observable.value;
     let index = 0;
     this.subscribe((value) => {
@@ -237,7 +293,7 @@ export class Observable<T> extends ExtensibleFunction {
         window.next(value);
       } else {
         window.complete(value);
-        window = new Observable(this.value);
+        window = new ObservableImpl(this.value);
         observable.next(window);
         index = 1;
       }
@@ -245,8 +301,8 @@ export class Observable<T> extends ExtensibleFunction {
     return observable as any;
   }
 
-  audit(other: IObservable<any>): IObservable<T> {
-    const observable = new Observable(this.value);
+  audit(other: Observable<any>): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     let timeout: any;
     other.subscribe(() => {
       clearTimeout(timeout);
@@ -257,26 +313,26 @@ export class Observable<T> extends ExtensibleFunction {
   }
 
   combine<U, V>(
-    other: IObservable<U>,
+    other: Observable<U>,
     fn: (value: T, other: U) => V
-  ): IObservable<V> {
-    const observable = new Observable(fn(this.value, other.value));
+  ): Observable<V> {
+    const observable = new ObservableImpl(fn(this.value, other.value));
     this.subscribe((value) => (observable.value = fn(value, other.value)));
     other.subscribe((value) => (observable.value = fn(this.value, value)));
     return observable as any;
   }
 
   mergeInternal<U extends T>(
-    _others: IObservable<U> | IObservable<U>[],
+    _others: Observable<U> | Observable<U>[],
     concurrent = Infinity
   ) {
-    const observables: Array<IObservable<U>> = Array.isArray(_others)
+    const observables: Array<Observable<U>> = Array.isArray(_others)
       ? [this as any, ..._others]
       : [this as any, _others];
     const buffer = new Set(observables.slice(0, concurrent));
     let index = concurrent;
 
-    const observable = new Observable(this.value as U);
+    const observable = new ObservableImpl(this.value as U);
     buffer.forEach((o) => o.subscribe((value) => observable.next(value)));
 
     observables.forEach((o) =>
@@ -300,48 +356,46 @@ export class Observable<T> extends ExtensibleFunction {
 
     return {
       observable,
-      add(other: IObservable<U>) {
+      add(other: Observable<U>) {
         observables.push(other);
       },
     };
   }
   merge<U extends T>(
-    _others: IObservable<U> | IObservable<U>[],
+    _others: Observable<U> | Observable<U>[],
     concurrent = Infinity
-  ): IObservable<U> {
+  ): Observable<U> {
     return this.mergeInternal(_others, concurrent).observable as any;
   }
   mergeAll<U extends T>(
-    _others: IObservable<U> | IObservable<U>[],
+    _others: Observable<U> | Observable<U>[],
     concurrent = Infinity
-  ): IObservable<U> {
+  ): Observable<U> {
     return this.mergeInternal(_others, concurrent).observable as any;
   }
   mergeMap<U extends T>(
-    fn: (value: T) => IObservable<U>,
+    fn: (value: T) => Observable<U>,
     concurrent = Infinity
-  ): IObservable<U> {
+  ): Observable<U> {
     const { observable, add } = this.mergeInternal<U>([], concurrent);
     this.subscribe((value) => add(fn(value)));
     return observable as any;
   }
 
-  concat<U extends T>(
-    others: IObservable<U> | IObservable<U>[]
-  ): IObservable<U> {
+  concat<U extends T>(others: Observable<U> | Observable<U>[]): Observable<U> {
     return this.merge(others, 1);
   }
   concatAll<U extends T>(
-    others: IObservable<U> | IObservable<U>[]
-  ): IObservable<U> {
+    others: Observable<U> | Observable<U>[]
+  ): Observable<U> {
     return this.mergeAll(others, 1);
   }
-  concatMap<U extends T>(fn: (value: T) => IObservable<U>): IObservable<U> {
+  concatMap<U extends T>(fn: (value: T) => Observable<U>): Observable<U> {
     return this.mergeMap(fn, 1);
   }
 
-  debounce(ms: number): IObservable<T> {
-    const observable = new Observable(this.value);
+  debounce(ms: number): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     let timeout: any;
     this.subscribe((value) => {
       clearTimeout(timeout);
@@ -349,8 +403,8 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  throttle(ms: number): IObservable<T> {
-    const observable = new Observable(this.value);
+  throttle(ms: number): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     let timeout: any;
     this.subscribe((value) => {
       if (!timeout) {
@@ -362,8 +416,8 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  distinct(): IObservable<T> {
-    const observable = new Observable(this.value);
+  distinct(): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     const values = new Set([this.value]);
     this.subscribe((value) => {
       if (!values.has(value)) {
@@ -373,10 +427,10 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  distinctUntilChanged(): IObservable<T>;
-  distinctUntilChanged<U>(fn: (value: T) => U): IObservable<T>;
-  distinctUntilChanged(fn?: unknown): IObservable<T> {
-    const observable = new Observable(this.value);
+  distinctUntilChanged(): Observable<T>;
+  distinctUntilChanged<U>(fn: (value: T) => U): Observable<T>;
+  distinctUntilChanged(fn?: unknown): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     const values = new Set([this.value]);
     this.subscribe((value) => {
       const key = typeof fn === "function" ? fn(value) : value;
@@ -387,8 +441,8 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  skip(count: number): IObservable<T> {
-    const observable = new Observable(this.value);
+  skip(count: number): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     let skipped = 0;
     this.subscribe((value) => {
       if (skipped < count) {
@@ -399,8 +453,8 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  skipWhile(fn: (value: T) => boolean): IObservable<T> {
-    const observable = new Observable(this.value);
+  skipWhile(fn: (value: T) => boolean): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     let skipped = false;
     this.subscribe((value) => {
       if (!skipped && fn(value)) {
@@ -412,8 +466,8 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  skipUntil(other: IObservable<any>): IObservable<T> {
-    const observable = new Observable(this.value);
+  skipUntil(other: Observable<any>): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     let skipped = false;
     other.subscribe(() => (skipped = true));
     this.subscribe((value) => {
@@ -423,8 +477,8 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  takeWhile(fn: (value: T) => boolean): IObservable<T> {
-    const observable = new Observable(this.value);
+  takeWhile(fn: (value: T) => boolean): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     this.subscribe((value) => {
       if (fn(value)) {
         observable.next(value);
@@ -432,15 +486,15 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  takeUntil(other: IObservable<any>): IObservable<T> {
-    const observable = new Observable(this.value);
+  takeUntil(other: Observable<any>): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     other.subscribe(() => observable.complete());
     this.subscribe((value) => observable.next(value));
     return observable as any;
   }
 
-  tap(fn: (value: T) => void): IObservable<T> {
-    const observable = new Observable(this.value);
+  tap(fn: (value: T) => void): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     this.subscribe((value) => {
       fn(value);
       observable.next(value);
@@ -448,53 +502,53 @@ export class Observable<T> extends ExtensibleFunction {
     return observable as any;
   }
   withLatestFrom<U, V>(
-    other: IObservable<U>,
+    other: Observable<U>,
     fn: (value: T, other: U) => V
-  ): IObservable<V> {
-    const observable = new Observable(fn(this.value, other.value));
+  ): Observable<V> {
+    const observable = new ObservableImpl(fn(this.value, other.value));
     this.subscribe((value) => (observable.value = fn(value, other.value)));
     other.subscribe((value) => (observable.value = fn(this.value, value)));
     return observable as any;
   }
-  startWith(value: T): IObservable<T> {
-    const observable = new Observable(value);
+  startWith(value: T): Observable<T> {
+    const observable = new ObservableImpl(value);
     this.subscribe((value) => observable.next(value));
     return observable as any;
   }
-  endWith(value: T): IObservable<T> {
-    const observable = new Observable(this.value);
+  endWith(value: T): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     this.subscribe((value) => observable.next(value));
     observable.next(value);
     return observable as any;
   }
-  defaultIfEmpty(value: T): IObservable<T> {
-    const observable = new Observable(this.value);
+  defaultIfEmpty(value: T): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     this.subscribe((value) => observable.next(value));
     if (typeof this.value === "undefined") {
       observable.next(value);
     }
     return observable as any;
   }
-  every(fn: (value: T) => boolean): IObservable<boolean> {
+  every(fn: (value: T) => boolean): Observable<boolean> {
     const values = new Set([this.value]);
-    const observable = new Observable(fn(this.value));
+    const observable = new ObservableImpl(fn(this.value));
     this.subscribe((value) => {
       values.add(value);
       observable.value = [...values].every(fn);
     });
     return observable as any;
   }
-  some(fn: (value: T) => boolean): IObservable<boolean> {
+  some(fn: (value: T) => boolean): Observable<boolean> {
     const values = new Set([this.value]);
-    const observable = new Observable(fn(this.value));
+    const observable = new ObservableImpl(fn(this.value));
     this.subscribe((value) => {
       values.add(value);
       observable.value = [...values].some(fn);
     });
     return observable as any;
   }
-  find(fn: (value: T) => boolean): IObservable<T> {
-    const observable = new Observable(this.value);
+  find(fn: (value: T) => boolean): Observable<T> {
+    const observable = new ObservableImpl(this.value);
     this.subscribe((value) => {
       if (fn(value)) {
         observable.next(value);
@@ -502,37 +556,37 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  findIndex(fn: (value: T) => boolean): IObservable<number> {
+  findIndex(fn: (value: T) => boolean): Observable<number> {
     const values = new Set([this.value]);
-    const observable = new Observable([...values].findIndex(fn) as number);
+    const observable = new ObservableImpl([...values].findIndex(fn) as number);
     this.subscribe((value) => {
       values.add(value);
       observable.value = [...values].findIndex(fn) as number;
     });
     return observable as any;
   }
-  min(): IObservable<number> {
+  min(): Observable<number> {
     return this.reduce(
       (acc: number, value: T) =>
         acc < (value as unknown as number) ? acc : (value as unknown as number),
       -Infinity
     );
   }
-  max(): IObservable<number> {
+  max(): Observable<number> {
     return this.reduce(
       (acc: number, value: T) =>
         acc > (value as unknown as number) ? acc : (value as unknown as number),
       Infinity
     );
   }
-  sum(): IObservable<number> {
+  sum(): Observable<number> {
     return this.reduce(
       (acc: number, value: T) => acc + (value as unknown as number),
       0
     );
   }
 
-  average(): IObservable<number> {
+  average(): Observable<number> {
     return this.reduce(
       (acc: { sum: number; length: number }, value: T) => ({
         sum: acc.sum + (value as unknown as number),
@@ -541,12 +595,12 @@ export class Observable<T> extends ExtensibleFunction {
       { sum: 0, length: 0 }
     ).map(({ sum, length }) => sum / length);
   }
-  count(): IObservable<number> {
+  count(): Observable<number> {
     return this.reduce((acc: number, value: T) => acc + 1, 0);
   }
 
-  switchMap<U extends T>(fn: (value: T) => IObservable<U>): IObservable<U> {
-    const observable = new Observable<U>(this.value as U);
+  switchMap<U extends T>(fn: (value: T) => Observable<U>): Observable<U> {
+    const observable = new ObservableImpl<U>(this.value as U);
     let subscription: (() => void) | undefined;
     this.subscribe((value) => {
       if (subscription) {
@@ -556,7 +610,7 @@ export class Observable<T> extends ExtensibleFunction {
     });
     return observable as any;
   }
-  switchAll(): IObservable<T> {
-    return this.switchMap((value) => Observable.of(value));
+  switchAll(): Observable<T> {
+    return this.switchMap((value) => ObservableImpl.of(value));
   }
 }

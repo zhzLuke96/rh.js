@@ -1,14 +1,45 @@
-import { StateOptions } from "@rhjs/hooks";
-import { IS_OBSERVABLE } from "./types";
-import { Observable } from "./ObservableInstance";
+import { StateOptions, createWatcher } from "@rhjs/hooks";
+import { Observable, IS_OBSERVABLE } from "./types";
+import { ObservableImpl } from "./ObservableInstance";
+import { Ref, ref } from "@rhjs/core";
 
 export const observable = <T>(initialState: T, options?: StateOptions<T>) =>
-  new Observable<T>(initialState, options);
+  new ObservableImpl<T>(initialState, options);
 
 export const isObservable = <T>(value: any): value is Observable<T> =>
   typeof value === "function" && value[IS_OBSERVABLE];
 
-export const of = Observable.of;
+export const of = ObservableImpl.of;
+
+export function createDomEventRef<K extends keyof HTMLElementEventMap, T>(
+  type: K
+): readonly [
+  domRef: Ref<Element | undefined>,
+  event$: Observable<HTMLElementEventMap[K]>
+];
+export function createDomEventRef<K extends keyof HTMLElementEventMap, T>(
+  type: K,
+  selector: (event: HTMLElementEventMap[K]) => T
+): readonly [domRef: Ref<Element | undefined>, event$: Observable<T>];
+export function createDomEventRef<K extends keyof HTMLElementEventMap, T>(
+  type: K,
+  selector?: (event: HTMLElementEventMap[K]) => T
+): readonly [
+  domRef: Ref<Element | undefined>,
+  event$: Observable<HTMLElementEventMap[K]> | Observable<T>
+] {
+  const domRef = ref<Element>();
+  const event$ = ObservableImpl.of<HTMLElementEventMap[K]>();
+  let event2$: Observable<any> | undefined = undefined;
+  createWatcher(domRef, (el) => {
+    if (el) {
+      if (event2$) event2$.complete();
+      event2$ = ObservableImpl.fromEvent(el, type, selector);
+      event2$.subscribe(event$);
+    }
+  });
+  return [domRef, event$] as const;
+}
 
 // examples:
 // const num1 = of(1);

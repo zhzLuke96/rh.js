@@ -1,7 +1,7 @@
 export const NONE = Symbol();
 export const IS_OBSERVABLE = Symbol();
 
-export interface IObservable<T> {
+export interface Observable<T> {
   (): T;
   (value: T): T;
 
@@ -15,95 +15,93 @@ export interface IObservable<T> {
 
   scan<U>(
     fn: (acc: U | undefined, value: T, index: number) => U
-  ): IObservable<U>;
+  ): Observable<U>;
   scan<U>(
     fn: (acc: U, value: T, index: number) => U,
     initial: U
-  ): IObservable<U>;
+  ): Observable<U>;
 
   reduce<U>(
     fn: (acc: U | undefined, value: T, index: number) => U
-  ): IObservable<U>;
+  ): Observable<U>;
   reduce<U>(
     fn: (acc: U, value: T, index: number) => U,
     initial: U
-  ): IObservable<U>;
+  ): Observable<U>;
 
-  map<U>(fn: (value: T) => U): IObservable<U>;
-  filter(fn: (value: T) => boolean): IObservable<T>;
+  map<U>(fn: (value: T) => U): Observable<U>;
+  filter(fn: (value: T) => boolean): Observable<T>;
 
   combine<U, V>(
-    other: IObservable<U>,
+    other: Observable<U>,
     fn: (value: T, other: U) => V
-  ): IObservable<V>;
+  ): Observable<V>;
 
-  debounce(ms: number): IObservable<T>;
-  throttle(ms: number): IObservable<T>;
+  debounce(ms: number): Observable<T>;
+  throttle(ms: number): Observable<T>;
 
-  distinct(): IObservable<T>;
+  distinct(): Observable<T>;
 
-  distinctUntilChanged(): IObservable<T>;
-  distinctUntilChanged<U>(fn: (value: T) => U): IObservable<T>;
+  distinctUntilChanged(): Observable<T>;
+  distinctUntilChanged<U>(fn: (value: T) => U): Observable<T>;
 
-  skip(count: number): IObservable<T>;
-  skipWhile(fn: (value: T) => boolean): IObservable<T>;
-  skipUntil(other: IObservable<any>): IObservable<T>;
+  skip(count: number): Observable<T>;
+  skipWhile(fn: (value: T) => boolean): Observable<T>;
+  skipUntil(other: Observable<any>): Observable<T>;
 
-  take(count: number): IObservable<T>;
-  takeWhile(fn: (value: T) => boolean): IObservable<T>;
-  takeUntil(other: IObservable<any>): IObservable<T>;
+  take(count: number): Observable<T>;
+  takeWhile(fn: (value: T) => boolean): Observable<T>;
+  takeUntil(other: Observable<any>): Observable<T>;
 
-  tap(fn: (value: T) => void): IObservable<T>;
+  tap(fn: (value: T) => void): Observable<T>;
   withLatestFrom<U, V>(
-    other: IObservable<U>,
+    other: Observable<U>,
     fn: (value: T, other: U) => V
-  ): IObservable<V>;
+  ): Observable<V>;
 
-  startWith(value: T): IObservable<T>;
-  endWith(value: T): IObservable<T>;
+  startWith(value: T): Observable<T>;
+  endWith(value: T): Observable<T>;
 
-  defaultIfEmpty(value: T): IObservable<T>;
+  defaultIfEmpty(value: T): Observable<T>;
 
-  every(fn: (value: T) => boolean): IObservable<boolean>;
-  some(fn: (value: T) => boolean): IObservable<boolean>;
-  find(fn: (value: T) => boolean): IObservable<T>;
-  findIndex(fn: (value: T) => boolean): IObservable<number>;
-  first(): IObservable<T>;
-  last(): IObservable<T>;
+  every(fn: (value: T) => boolean): Observable<boolean>;
+  some(fn: (value: T) => boolean): Observable<boolean>;
+  find(fn: (value: T) => boolean): Observable<T>;
+  findIndex(fn: (value: T) => boolean): Observable<number>;
+  first(): Observable<T>;
+  last(): Observable<T>;
 
-  audit(other: IObservable<any>): IObservable<T>;
+  audit(other: Observable<any>): Observable<T>;
 
-  min(): IObservable<number>;
-  max(): IObservable<number>;
-  sum(): IObservable<number>;
-  average(): IObservable<number>;
-  count(): IObservable<number>;
+  min(): Observable<number>;
+  max(): Observable<number>;
+  sum(): Observable<number>;
+  average(): Observable<number>;
+  count(): Observable<number>;
 
-  toArray(): IObservable<T[]>;
+  toArray(): Observable<T[]>;
 
-  window(count: number): IObservable<IObservable<T>>;
+  window(count: number): Observable<Observable<T>>;
 
   merge<U extends T>(
-    others: IObservable<U> | IObservable<U>[],
+    others: Observable<U> | Observable<U>[],
     concurrent?: number
-  ): IObservable<U>;
+  ): Observable<U>;
   mergeAll<U extends T>(
-    others: IObservable<U> | IObservable<U>[],
+    others: Observable<U> | Observable<U>[],
     concurrent?: number
-  ): IObservable<U>;
+  ): Observable<U>;
   mergeMap<U extends T>(
-    fn: (value: T) => IObservable<U>,
+    fn: (value: T) => Observable<U>,
     concurrent?: number
-  ): IObservable<U>;
+  ): Observable<U>;
 
-  concat<U extends T>(
-    others: IObservable<U> | IObservable<U>[]
-  ): IObservable<U>;
+  concat<U extends T>(others: Observable<U> | Observable<U>[]): Observable<U>;
   concatAll<U extends T>(
-    others: IObservable<U> | IObservable<U>[]
-  ): IObservable<U>;
-  concatMap<U extends T>(fn: (value: T) => IObservable<U>): IObservable<U>;
+    others: Observable<U> | Observable<U>[]
+  ): Observable<U>;
+  concatMap<U extends T>(fn: (value: T) => Observable<U>): Observable<U>;
 
-  switchMap<U extends T>(fn: (value: T) => IObservable<U>): IObservable<U>;
-  switchAll(): IObservable<T>;
+  switchMap<U extends T>(fn: (value: T) => Observable<U>): Observable<U>;
+  switchAll(): Observable<T>;
 }
