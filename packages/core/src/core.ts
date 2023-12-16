@@ -32,7 +32,8 @@ function element2node(element: ReactiveViewElement): Node | null {
     return element;
   }
   if (isRef(element) || typeof element === 'function') {
-    const render = () => (isRef(element) ? unref(element) : element());
+    const render =
+      typeof element === 'function' ? element : () => unref(element);
     return rh(() => render);
   }
   return document.createTextNode(String(element));
@@ -450,7 +451,11 @@ export class View {
   }
 
   protected mountView(parentElement: Node, insertBefore?: Node | null) {
-    if (this.anchor === insertBefore) return;
+    if (
+      this.anchor === insertBefore &&
+      Array.from(parentElement.childNodes.values()).includes(this.anchor as any)
+    )
+      return;
     parentElement.insertBefore(this.anchor, insertBefore || null);
   }
 
@@ -759,7 +764,7 @@ export class View {
     return nextChildren;
   }
 
-  protected remove() {
+  remove() {
     for (const child of this.children) {
       child.parentNode?.removeChild(child);
       const view = View.anchor2view.get(child);
@@ -872,7 +877,6 @@ export class DomView extends View {
     View.anchor2view.set(this.elem, this);
 
     this.events.once('init_before', () => {
-      // console.log('init_before', this.domChildren, domChildren);
       this.updateChildren(this.domChildren);
       this.updateDomProps(this.domProps);
     });
@@ -882,7 +886,11 @@ export class DomView extends View {
     parentElement: Node,
     insertBefore?: Node | null | undefined
   ): void {
-    if (this.elem === insertBefore) return;
+    if (
+      this.elem === insertBefore &&
+      Array.from(parentElement.childNodes.values()).includes(this.anchor as any)
+    )
+      return;
     parentElement.insertBefore(this.elem, insertBefore || null);
   }
 
@@ -916,6 +924,12 @@ export class DomView extends View {
     Object.values(this.propsCleanups).forEach((cb) => cb());
     this.propsCleanups = {};
     super.unmount();
+  }
+
+  remove(): void {
+    this.elem.parentNode?.removeChild(this.elem);
+    // just remove DomView
+    // super.remove();
   }
 
   updateDom() {
