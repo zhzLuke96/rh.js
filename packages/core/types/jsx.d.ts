@@ -1663,7 +1663,7 @@ declare namespace JSX {
     srcSet?: string | undefined | RefLike<string | undefined>;
     start?: number | undefined | RefLike<number | undefined>;
     step?: number | string | undefined | RefLike<number | string | undefined>;
-    style?: string | undefined | RefLike<string | undefined>;
+    style?: RefLike<StyleDeclaration | string | undefined | null>;
     summary?: string | undefined | RefLike<string | undefined>;
     tabIndex?: number | undefined | RefLike<number | undefined>;
     target?: string | undefined | RefLike<string | undefined>;
@@ -1876,7 +1876,7 @@ declare namespace JSX {
     source: HTMLAttributes<HTMLSourceElement>;
     span: HTMLAttributes<HTMLSpanElement>;
     strong: HTMLAttributes<HTMLElement>;
-    style: HTMLAttributes<HTMLStyleElement> | RefLike<StyleDeclaration>;
+    style: HTMLAttributes<HTMLStyleElement>;
     sub: HTMLAttributes<HTMLElement>;
     summary: HTMLAttributes<HTMLElement>;
     sup: HTMLAttributes<HTMLElement>;
