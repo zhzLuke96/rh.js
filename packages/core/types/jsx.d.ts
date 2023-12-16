@@ -4,6 +4,10 @@ type Ref<T> = { value: T };
 type Getter<T> = (...args: any[]) => T;
 type MaybeRefLike<T> = T | Ref<T> | Getter<T>;
 
+type StyleDeclaration = {
+  [K in keyof CSSStyleDeclaration]: MaybeRefLike<CSSStyleDeclaration[K]>;
+};
+
 declare namespace JSX {
   export interface IntrinsicAttributes {
     key?: any;
@@ -1488,8 +1492,12 @@ declare namespace JSX {
     challenge?: string | undefined | RefLike<string | undefined>;
     checked?: boolean | undefined | RefLike<boolean | undefined>;
     cite?: string | undefined | RefLike<string | undefined>;
-    class?: string | undefined | RefLike<string | undefined>;
-    className?: string | undefined | RefLike<string | undefined>;
+    class?: RefLike<
+      string | Record<string, boolean> | RefLike<string>[] | undefined
+    >;
+    className?: RefLike<
+      string | Record<string, boolean> | RefLike<string>[] | undefined
+    >;
     cols?: number | undefined | RefLike<number | undefined>;
     colSpan?: number | undefined | RefLike<number | undefined>;
     content?: string | undefined | RefLike<string | undefined>;
@@ -1868,7 +1876,7 @@ declare namespace JSX {
     source: HTMLAttributes<HTMLSourceElement>;
     span: HTMLAttributes<HTMLSpanElement>;
     strong: HTMLAttributes<HTMLElement>;
-    style: HTMLAttributes<HTMLStyleElement>;
+    style: HTMLAttributes<HTMLStyleElement> | RefLike<StyleDeclaration>;
     sub: HTMLAttributes<HTMLElement>;
     summary: HTMLAttributes<HTMLElement>;
     sup: HTMLAttributes<HTMLElement>;
