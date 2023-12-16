@@ -5,7 +5,7 @@ type Getter<T> = (...args: any[]) => T;
 type MaybeRefLike<T> = T | Ref<T> | Getter<T>;
 
 type StyleDeclaration = {
-  [K in keyof CSSStyleDeclaration]: MaybeRefLike<CSSStyleDeclaration[K]>;
+  [K in keyof CSSStyleDeclaration]?: MaybeRefLike<CSSStyleDeclaration[K]>;
 };
 
 declare namespace JSX {
