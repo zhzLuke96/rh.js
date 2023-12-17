@@ -81,17 +81,23 @@ function htmlRoot(strings: TemplateStringsArray, ...values: any[]) {
 }
 
 const validTagNameRegex = /^[a-z][a-zA-Z0-9\-_]*$/;
-const createHTMLTagger =
-  (rootComponent: Component, tagMapping: Record<string, any> = {}) =>
+const createHtmlTag =
+  ({
+    root: rootComponent,
+    map: mapNode,
+  }: {
+    root: Component;
+    map?: (node: HTMLTemplateNode) => any;
+  }) =>
   (strings: TemplateStringsArray, ...values: any[]) => {
     const root = htmlRoot(strings, ...values);
-    const buildTag = (node: HTMLTemplateNode, is_svg_dom = false) => {
+    const nodeToTag = (node: HTMLTemplateNode, is_svg_dom = false) => {
       if (typeof node.tag !== "string") {
+        // tag is a view function
         return node.tag;
       }
-      const mapping = tagMapping[node.tag];
-      if (mapping) {
-        return mapping;
+      if (mapNode) {
+        return mapNode(node);
       }
       if (is_svg_dom) {
         return document.createElementNS("http://www.w3.org/2000/svg", node.tag);
@@ -130,7 +136,7 @@ const createHTMLTagger =
       }
       const self_is_svg_dom = typeof node === "object" && node.tag === "svg";
       const next_is_svg_dom = self_is_svg_dom || is_svg_dom;
-      const tag = buildTag(node, next_is_svg_dom);
+      const tag = nodeToTag(node, next_is_svg_dom);
       return rh(
         tag,
         node.attributes,
@@ -141,15 +147,19 @@ const createHTMLTagger =
     return walk(root);
   };
 
-const mapping = (tagMapping: Record<string, any>, rootTag: any = Fragment) =>
-  createHTMLTagger(rootTag, tagMapping);
+const map = (map: (node: HTMLTemplateNode) => any, root: any = Fragment) =>
+  createHtmlTag({ root, map });
 
-const fragmentHTML = createHTMLTagger(Fragment);
-const scopeHTML = createHTMLTagger(Scope);
+const fragmented = createHtmlTag({ root: Fragment });
+const scoped = createHtmlTag({ root: Scope });
 
-export const html = fragmentHTML as typeof fragmentHTML & {
-  scoped: typeof scopeHTML;
-  mapping: typeof mapping;
+export const html = fragmented as typeof fragmented & {
+  scoped: typeof scoped;
+  fragmented: typeof fragmented;
+  create: typeof createHtmlTag;
+  map: typeof map;
 };
-html.scoped = scopeHTML;
-html.mapping = mapping;
+html.scoped = scoped;
+html.fragmented = fragmented;
+html.map = map;
+html.create = createHtmlTag;
