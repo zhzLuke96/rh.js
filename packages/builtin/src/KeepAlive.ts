@@ -1,5 +1,5 @@
 import { FC, View, markHasOutsideEffect } from "@rhjs/core";
-import { onMounted } from "@rhjs/hooks";
+import { onMounted, onUnmounted } from "@rhjs/hooks";
 
 const KeepAliveMaps = new WeakMap<
   View,
@@ -42,11 +42,11 @@ export const KeepAlive: FC<{
   const innerView = ensureInnerView(currentView, key, children);
 
   onMounted((parentElement) => {
-    innerView.mount(parentElement, currentView.anchor);
+    innerView.mount(parentElement, currentView.anchor, true);
   });
-  // onUnmounted(() => {
-  //   innerView.remove();
-  // });
+  onUnmounted(() => {
+    innerView.remove();
+  });
 
   // NOTE: innerView 不能直接输出，因为直接输出就会和外部的 view 产生关联导致提前unmount
   return () => null;
