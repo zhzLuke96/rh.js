@@ -36,7 +36,7 @@ export function baseRef<T>(
   const is_primitive_value = is_primitive(value);
 
   const _obj = {
-    _v_isRef: true,
+    __v_isRef: true,
     valueOf() {
       return ref_obj.value;
     },
