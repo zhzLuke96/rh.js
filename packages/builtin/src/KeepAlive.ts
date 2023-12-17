@@ -48,6 +48,6 @@ export const KeepAlive: FC<{
     innerView.remove();
   });
 
-  // NOTE: innerView 不能直接输出，因为直接输出就会和外部的 view 产生关联导致提前unmount
+  // NOTE: do not return innerView, because it will unmount when parent view unmount.
   return () => null;
 };

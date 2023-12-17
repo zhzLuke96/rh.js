@@ -1,18 +1,15 @@
 import type { FC, InlineRenderResult } from "@rhjs/core";
-import {
-  ref,
-  unref,
-  skip,
-  markHasOutsideEffect,
-  View,
-  compile,
-} from "@rhjs/core";
+import { ref, unref, skip, markHasOutsideEffect, View } from "@rhjs/core";
 import { rh } from "@rhjs/core";
 import { createEffect, onUnmounted } from "@rhjs/hooks";
 
 type AsyncRender<ARGS extends any[]> = (
   ...args: ARGS
 ) => AsyncGenerator<InlineRenderResult, InlineRenderResult>;
+
+/**
+ * @deprecated use AsyncView instead, this one has more outside effect.
+ */
 export function asyncView<ARGS extends any[]>(
   asyncRender: AsyncRender<ARGS>,
   ...args: ARGS

@@ -16,6 +16,8 @@ type StyleFunction = (state: DOMState) => Partial<CSSStyleDeclaration>;
 
 const events = [
   "mousemove",
+  "mouseenter",
+  "mouseleave",
   "keypress",
   "keyup",
   "mousedown",
@@ -24,7 +26,7 @@ const events = [
   "blur",
   "change",
 ];
-const createDOMState = (dom: HTMLElement) => {
+const createPseudoState = (dom: HTMLElement) => {
   const state = reactive({
     hover: false,
     active: false,
@@ -43,10 +45,8 @@ const createDOMState = (dom: HTMLElement) => {
       (state as any)[k] = value;
     }
   };
-  onMounted(() => {
-    events.forEach((ev) => {
-      dom.addEventListener(ev, update, { passive: true });
-    });
+  events.forEach((ev) => {
+    dom.addEventListener(ev, update, { passive: true });
   });
   onUnmounted(() => {
     events.forEach((ev) => {
@@ -63,7 +63,7 @@ export const styleDirective: DirectiveDefine = {
     if (typeof value !== "function" || !(dom instanceof HTMLElement)) {
       return;
     }
-    const state = createDOMState(dom);
+    const state = createPseudoState(dom);
     let currentStyle = {};
     const { cleanup } = createEffect(() => {
       const nextStyle = value(state);

@@ -1,6 +1,6 @@
 import { ref } from "@rhjs/core";
 import { component, InlineRender, InlineRenderResult, skip } from "@rhjs/core";
-import { onError } from "@rhjs/hooks";
+import { createRenderTrigger, onError } from "@rhjs/hooks";
 
 /**
  * Error Boundary
@@ -22,22 +22,25 @@ export const ErrorBoundary = component({
         catchError.value = detail;
       }
     });
-    const rerenderRef = ref(1);
+    const rerender = createRenderTrigger();
     return {
       catchError,
-      rerenderRef,
+      rerender,
       fallbackRender,
       childrenRender: render,
     };
   },
-  render(_, { fallbackRender, rerenderRef, catchError, childrenRender }) {
-    [rerenderRef.value];
-    const rerender = () => {
-      rerenderRef.value = Date.now();
-      catchError.value = null;
-    };
+  render(
+    _,
+    { fallbackRender, rerender: _rerender, catchError, childrenRender }
+  ) {
     if (catchError.value) {
-      return skip(() => fallbackRender(catchError.value!, rerender));
+      return skip(() =>
+        fallbackRender(catchError.value!, () => {
+          catchError.value = null;
+          _rerender();
+        })
+      );
     }
     return childrenRender();
   },
