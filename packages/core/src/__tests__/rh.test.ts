@@ -3,7 +3,7 @@ import { TestUtils } from '../internal/TestUtils';
 
 describe('rh', () => {
   beforeEach(async () => {
-    // jest.resetModules();
+    jest.resetModules();
   });
 
   it('1. dom view should be mount', async () => {
@@ -175,13 +175,15 @@ describe('rh with setup component', () => {
         return {};
       },
       render(props, state, children) {
-        return rh('div', null, rh('span', null, 'hello'));
+        return rh('div', { id: 'hello' }, rh('span', { id: 'span' }, 'hello'));
       },
     });
     const { container, instance } = TestUtils.mountComponent(Hello);
     expect(instance).toBeInstanceOf(ViewComponent);
     await TestUtils.nextTimeout();
-    expect(container.innerHTML).toBe('<div><span>hello</span></div>');
+    expect(container.innerHTML).toBe(
+      '<div id="hello"><span id="span">hello</span></div>'
+    );
   });
 
   it('should be able return dom with children array', async () => {

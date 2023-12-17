@@ -856,10 +856,10 @@ export class View {
 }
 
 export class DomView extends View {
-  elem: Node;
+  elem: HTMLElement;
   props = {} as AnyRecord;
   constructor(
-    tagNameOrNode: string | Node,
+    tagNameOrNode: string | HTMLElement,
     public domProps: AnyRecord,
     public domChildren: any[]
   ) {
@@ -1323,10 +1323,11 @@ export function compile(
   ...children: any[]
 ): ViewComponent;
 export function compile(
-  type: Node,
+  type: HTMLElement,
   props?: any,
   ...children: any[]
-): DomView | View;
+): DomView;
+export function compile(type: Text, props?: any, ...children: any[]): View;
 export function compile(type: string, props?: any, ...children: any[]): DomView;
 export function compile(
   type: any,
@@ -1343,7 +1344,11 @@ export function compile(
   if (viewType instanceof Node) {
     let view = View.anchor2view.get(viewType);
     if (!view) {
-      view = new DomView(viewType, props, children);
+      if (viewType instanceof HTMLElement) {
+        view = new DomView(viewType, props, children);
+      } else {
+        throw new Error(`Unknown node type: ${String(viewType)}`);
+      }
     }
     if (view instanceof DomView) {
       view.domChildren = children;
@@ -1404,7 +1409,7 @@ export function mount(
   node: Node,
   props?: any,
   children?: any[]
-): View;
+): View | DomView;
 export function mount(
   selectorOrDom: string | Element,
   component: Component,
@@ -1416,7 +1421,7 @@ export function mount(
   nodeOrComponent: Node | Component,
   props?: any,
   children?: any[]
-): ViewComponent | View {
+): ViewComponent | View | DomView {
   const container =
     selectorOrDom instanceof Element
       ? selectorOrDom
