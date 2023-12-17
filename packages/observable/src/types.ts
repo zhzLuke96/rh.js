@@ -29,8 +29,45 @@ export interface Observable<T> {
     initial: U
   ): Observable<U>;
 
-  map<U>(fn: (value: T) => U): Observable<U>;
+  map<U>(fn: (value: T) => U): Observable<U | undefined>;
+  map<U>(fn: (value: T) => U, initial: U): Observable<U>;
+  map<U>(fn: (value: T) => U, initial?: U): Observable<U | undefined>;
+
   filter(fn: (value: T) => boolean): Observable<T>;
+
+  zip<U>(other: Observable<U>): Observable<[T, U]>;
+  zip<U, V>(
+    other1: Observable<U>,
+    other2: Observable<V>
+  ): Observable<[T, U, V]>;
+  zip<U, V, W>(
+    other1: Observable<U>,
+    other2: Observable<V>,
+    other3: Observable<W>
+  ): Observable<[T, U, V, W]>;
+  zip<U, V, W, X>(
+    other1: Observable<U>,
+    other2: Observable<V>,
+    other3: Observable<W>,
+    other4: Observable<X>
+  ): Observable<[T, U, V, W, X]>;
+  zip<U, V, W, X, Y>(
+    other1: Observable<U>,
+    other2: Observable<V>,
+    other3: Observable<W>,
+    other4: Observable<X>,
+    other5: Observable<Y>
+  ): Observable<[T, U, V, W, X, Y]>;
+  zip(...others: Observable<any>[]): Observable<any[]>;
+
+  buffer(other: Observable<any>): Observable<T[]>;
+
+  bufferCount(n: 1): Observable<[T]>;
+  bufferCount(n: 2): Observable<[T, T]>;
+  bufferCount(n: 3): Observable<[T, T, T]>;
+  bufferCount(n: 4): Observable<[T, T, T, T]>;
+  bufferCount(n: 5): Observable<[T, T, T, T, T]>;
+  bufferCount(n: number): Observable<T[]>;
 
   combine<U, V>(
     other: Observable<U>,
@@ -81,7 +118,15 @@ export interface Observable<T> {
 
   toArray(): Observable<T[]>;
 
-  window(count: number): Observable<Observable<T>>;
+  window(other: Observable<any>): Observable<Observable<T>>;
+  windowCount(count: number): Observable<Observable<T>>;
+
+  timeInterval(): Observable<{
+    value: T;
+    interval: number;
+  }>;
+
+  timeout(ms: number): Observable<T | Error>;
 
   merge<U extends T>(
     others: Observable<U> | Observable<U>[],

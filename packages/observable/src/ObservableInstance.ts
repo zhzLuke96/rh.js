@@ -118,6 +118,7 @@ export class ObservableImpl<T> extends ExtensibleFunction {
   }
 
   [IS_OBSERVABLE] = true as const;
+  __v_isRef = true;
 
   _state: Readonly<Ref<DeepReadonly<UnwrapRef<T>>>>;
   _setter: StateMutator<T>;
@@ -264,8 +265,54 @@ export class ObservableImpl<T> extends ExtensibleFunction {
     return observable as any;
   }
 
-  map<U>(fn: (value: T) => U): Observable<U> {
-    return this.scan((_, value) => fn(value));
+  map<U>(fn: (value: T) => U): Observable<U | undefined>;
+  map<U>(fn: (value: T) => U, initial: U): Observable<U>;
+  map<U>(fn: (value: T) => U, initial?: U): Observable<U | undefined>;
+  map<U>(fn: (value: T) => U, initial?: U): Observable<U | undefined> {
+    return this.scan((_, value) => fn(value), initial);
+  }
+
+  zip(...others: Observable<any>[]): Observable<any[]> {
+    const observables = [this, ...others];
+    const observable = new ObservableImpl(
+      observables.map((observable) => observable.value)
+    );
+    observables.forEach((observable, index) =>
+      observable.subscribe((value) => {
+        const values = observable.value;
+        values[index] = value;
+        observable.next(values);
+      })
+    );
+    let completed = 0;
+    observables.forEach((observable) =>
+      observable.finally(() => {
+        completed++;
+        if (completed >= observables.length) {
+          observable.complete();
+        }
+      })
+    );
+    return observable as any;
+  }
+
+  buffer(other: Observable<any>): Observable<T[]> {
+    const observable = new ObservableImpl<T[]>([]);
+    let buffer: T[] = [];
+    other.subscribe(() => {
+      observable.next(buffer);
+      buffer = [];
+    });
+    this.subscribe((value) => buffer.push(value));
+    this.finally(() => observable.complete(buffer));
+    return observable as any;
+  }
+
+  bufferCount(n: number): Observable<T[]> {
+    const counter$ = this.scan((acc) => (acc + 1) % n, 0).filter(
+      (value) => value === 0
+    );
+    return this.buffer(counter$);
   }
 
   filter(fn: (value: T) => boolean): Observable<T> {
@@ -283,21 +330,45 @@ export class ObservableImpl<T> extends ExtensibleFunction {
     return this.reduce((acc: T[], value: T) => [...acc, value], []);
   }
 
-  window(count: number): Observable<Observable<T>> {
+  window(other: Observable<any>): Observable<Observable<T>> {
     const observable = new ObservableImpl(new ObservableImpl(this.value));
     let window = observable.value;
-    let index = 0;
-    this.subscribe((value) => {
-      if (index < count) {
-        index++;
-        window.next(value);
-      } else {
-        window.complete(value);
-        window = new ObservableImpl(this.value);
-        observable.next(window);
-        index = 1;
-      }
+    other.subscribe(() => {
+      window.complete();
+      window = new ObservableImpl(this.value);
+      observable.next(window);
     });
+    this.subscribe((value) => window.next(value));
+    this.finally(() => observable.complete());
+    return observable as any;
+  }
+
+  windowCount(count: number): Observable<Observable<T>> {
+    const counter$ = this.scan((acc) => (acc + 1) % count, 0).filter(
+      (value) => value === 0
+    );
+    return this.window(counter$);
+  }
+
+  timeInterval(): Observable<{ value: T; interval: number }> {
+    const observable = new ObservableImpl({
+      value: this.value,
+      interval: 0,
+    });
+    let last = Date.now();
+    this.subscribe((value) => {
+      const now = Date.now();
+      observable.next({ value, interval: now - last });
+      last = now;
+    });
+    this.finally(() => observable.complete());
+    return observable as any;
+  }
+
+  timeout(ms: number): Observable<T | Error> {
+    const observable = new ObservableImpl<T | Error>(this.value);
+    this.subscribe((value) => observable.complete(value));
+    setTimeout(() => observable.complete(new Error("timeout")), ms);
     return observable as any;
   }
 
@@ -494,12 +565,8 @@ export class ObservableImpl<T> extends ExtensibleFunction {
   }
 
   tap(fn: (value: T) => void): Observable<T> {
-    const observable = new ObservableImpl(this.value);
-    this.subscribe((value) => {
-      fn(value);
-      observable.next(value);
-    });
-    return observable as any;
+    this.subscribe(fn);
+    return this as any;
   }
   withLatestFrom<U, V>(
     other: Observable<U>,
@@ -518,7 +585,7 @@ export class ObservableImpl<T> extends ExtensibleFunction {
   endWith(value: T): Observable<T> {
     const observable = new ObservableImpl(this.value);
     this.subscribe((value) => observable.next(value));
-    observable.next(value);
+    this.finally((value) => observable.complete(value));
     return observable as any;
   }
   defaultIfEmpty(value: T): Observable<T> {
@@ -534,7 +601,7 @@ export class ObservableImpl<T> extends ExtensibleFunction {
     const observable = new ObservableImpl(fn(this.value));
     this.subscribe((value) => {
       values.add(value);
-      observable.value = [...values].every(fn);
+      observable.next([...values].every(fn));
     });
     return observable as any;
   }
@@ -543,7 +610,7 @@ export class ObservableImpl<T> extends ExtensibleFunction {
     const observable = new ObservableImpl(fn(this.value));
     this.subscribe((value) => {
       values.add(value);
-      observable.value = [...values].some(fn);
+      observable.next([...values].some(fn));
     });
     return observable as any;
   }
@@ -551,7 +618,7 @@ export class ObservableImpl<T> extends ExtensibleFunction {
     const observable = new ObservableImpl(this.value);
     this.subscribe((value) => {
       if (fn(value)) {
-        observable.next(value);
+        observable.complete(value);
       }
     });
     return observable as any;
@@ -561,7 +628,9 @@ export class ObservableImpl<T> extends ExtensibleFunction {
     const observable = new ObservableImpl([...values].findIndex(fn) as number);
     this.subscribe((value) => {
       values.add(value);
-      observable.value = [...values].findIndex(fn) as number;
+      if (fn(value)) {
+        observable.complete([...values].findIndex(fn) as number);
+      }
     });
     return observable as any;
   }
@@ -593,7 +662,7 @@ export class ObservableImpl<T> extends ExtensibleFunction {
         length: acc.length + 1,
       }),
       { sum: 0, length: 0 }
-    ).map(({ sum, length }) => sum / length);
+    ).map(({ sum, length }) => sum / length, 0);
   }
   count(): Observable<number> {
     return this.reduce((acc: number, value: T) => acc + 1, 0);
