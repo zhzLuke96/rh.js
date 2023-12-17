@@ -32,8 +32,7 @@ function element2node(element: ReactiveViewElement): Node | null {
     return element;
   }
   if (isRef(element) || typeof element === 'function') {
-    const render =
-      typeof element === 'function' ? element : () => unref(element);
+    const render = isRef(element) ? () => unref(element) : element;
     return rh(() => render);
   }
   return document.createTextNode(String(element));
