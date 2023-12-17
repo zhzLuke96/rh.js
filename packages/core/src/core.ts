@@ -1,6 +1,7 @@
 import {
   effect,
   effectScope,
+  isReadonly,
   isRef,
   ReactiveEffectRunner,
   unref,
@@ -1006,6 +1007,11 @@ export class DomView extends View {
     const element = this.elem;
     if (key === 'ref') {
       if (isRef(value)) {
+        if (isReadonly(value)) {
+          console.warn(
+            `WARNING: ref is readonly, cannot set ref to element <${element.tagName.toLowerCase()}/>, please use ref() instead to get dom.`
+          );
+        }
         value.value = element;
       } else if (typeof value === 'function') {
         value(element);
