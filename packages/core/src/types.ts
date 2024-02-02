@@ -1,6 +1,8 @@
-import type { DebuggerEvent, Ref } from '@vue/reactivity';
+import type { Observable } from '@rhjs/observable';
 import type { View } from './core';
 import type { FunctionComponent, SetupComponent } from './core';
+
+type Ref<T> = Observable<T>;
 
 export type AnyRecord = Record<string, any>;
 export type ViewDataType = string | boolean | number | null | undefined | void;
@@ -46,8 +48,9 @@ export type ViewEvent = {
 
   // component events
   render_stop: () => any;
-  render_tracked: (event: DebuggerEvent) => any;
-  render_triggered: (event: DebuggerEvent) => any;
+  // TODO type
+  render_tracked: (event: any) => any;
+  render_triggered: (event: any) => any;
 };
 export type Component<P = any, S = any, C = any[]> =
   | FunctionComponent<P, S, C>

@@ -1,11 +1,12 @@
 import {
+  ObservableEffect,
   effect,
   effectScope,
-  isReadonly,
   isRef,
-  ReactiveEffectRunner,
   unref,
-} from '@vue/reactivity';
+  skip,
+  batch,
+} from '@rhjs/observable';
 import { EventEmitter } from 'eventemitter3';
 import { UniqIdleScheduler } from './internal/IdleScheduler';
 import { shallowEqual } from './internal/shallowEqual';
@@ -18,7 +19,6 @@ import {
   ComponentArguments,
   ViewRenderResult,
 } from './types';
-import { skip } from './reactivity';
 import { unrefAttribute, unSetAttribute } from './utils';
 import { ViewEvent } from './types';
 import { AllHTMLElementTagNames, Component } from './types';
@@ -34,7 +34,7 @@ function element2node(element: ReactiveViewElement): Node | null {
   }
   if (isRef(element) || typeof element === 'function') {
     const render = isRef(element) ? () => unref(element) : element;
-    return rh(() => render);
+    return rh(() => render as any);
   }
   return document.createTextNode(String(element));
 }
@@ -382,7 +382,7 @@ export class View {
 
   key?: string;
 
-  effectScope = effectScope(true);
+  effectScope = effectScope();
 
   constructor(anchor = View.createAnchor() as Node) {
     this.anchor = anchor;
@@ -684,7 +684,7 @@ export class View {
         oldComponent.state = newComponent.state;
         oldComponent.children = newComponent.children;
 
-        oldComponent.update();
+        oldComponent.update.run();
       } else {
         // patch view
         oldView.updateChildren(newView.children);
@@ -748,7 +748,7 @@ export class View {
         case 'patch-children': {
           const { oldComponent, newComponent } = patch;
           oldComponent.children = newComponent.children;
-          oldComponent.update();
+          oldComponent.update.run();
           break;
         }
       }
@@ -779,10 +779,10 @@ export class View {
       const runner = effect(fn, {
         lazy: false,
       });
-      if (runner.effect.deps.length === 0) {
-        runner.effect.stop();
+      if (runner.deps.length === 0) {
+        runner.stop();
       } else {
-        this.events.once(stopEvent, () => runner.effect.stop());
+        this.events.once(stopEvent, () => runner.stop());
       }
       return runner;
     });
@@ -1007,11 +1007,6 @@ export class DomView extends View {
     const element = this.elem;
     if (key === 'ref') {
       if (isRef(value)) {
-        if (isReadonly(value)) {
-          console.warn(
-            `WARNING: ref is readonly, cannot set ref to element <${element.tagName.toLowerCase()}/>, please use ref() instead to get dom.`
-          );
-        }
         value.value = element;
       } else if (typeof value === 'function') {
         value(element);
@@ -1030,14 +1025,17 @@ export class DomView extends View {
     }
     if (key.startsWith('on')) {
       const eventName = key.slice(2).toLowerCase();
-      element.addEventListener(eventName, value);
+      const handler = (...args: any[]) => batch(() => value(...args));
 
-      const removeHandler = () => element.removeEventListener(eventName, value);
+      element.addEventListener(eventName, handler);
+
+      const removeHandler = () =>
+        element.removeEventListener(eventName, handler);
       this.events.once('unmounted', removeHandler);
 
       const disposeEventHandler = () => {
         this.events.off('unmounted', removeHandler);
-        element.removeEventListener(eventName, value);
+        element.removeEventListener(eventName, handler);
       };
       this.addPropCleanup(key, disposeEventHandler);
     } else {
@@ -1051,7 +1049,7 @@ export class DomView extends View {
         setAttribute(element, key, nextValue);
       });
       this.addPropCleanup(key, () => unSetAttribute(element, key));
-      this.addPropCleanup(key, () => runner?.effect.stop());
+      this.addPropCleanup(key, () => runner?.stop());
     }
   }
 
@@ -1135,7 +1133,7 @@ export class ViewComponent {
   _component_type!: FunctionComponent | SetupComponent;
 
   render!: ViewRenderFunction;
-  update!: ReactiveEffectRunner;
+  update!: ObservableEffect;
 
   // NOTE: MUST be readonly
   readonly view = new View();
@@ -1154,7 +1152,7 @@ export class ViewComponent {
       view.effectScope.run(() => {
         this.update = effect(this._update.bind(this), {
           lazy: false,
-          onStop: () => view.events.emit('render_stop'),
+          onStop: (event) => view.events.emit('render_stop'),
           onTrack: (event) => view.events.emit('render_tracked', event),
           onTrigger: (event) => view.events.emit('render_triggered', event),
         });
@@ -1169,7 +1167,7 @@ export class ViewComponent {
     this.state = state || this.state;
     this.children = children || this.children;
 
-    this.update();
+    this.update.run();
   }
 
   protected _update() {
@@ -1199,7 +1197,7 @@ export class ViewComponent {
   }
 
   protected dispose() {
-    this.update?.effect.stop();
+    this.update?.stop();
   }
 }
 
@@ -1227,7 +1225,7 @@ const createFCBuilder = (fn: FunctionComponent) => {
         fn(that.props, that.state, that.children)
       );
       if (typeof setup_result === 'function') {
-        that.render = setup_result;
+        that.render = setup_result as any;
       } else {
         that.render = () => setup_result;
       }

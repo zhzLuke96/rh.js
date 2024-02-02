@@ -12,6 +12,7 @@ export * from "./AsyncView";
 export * from "./memoView";
 
 export * from "./directives";
-export * from "./reactivity";
 
 export * from "./tags";
+
+// export * from "./hydrate";

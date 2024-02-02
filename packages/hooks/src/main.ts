@@ -11,3 +11,4 @@ export * from "./signal";
 export * from "./state";
 export * from "./unref";
 export * from "./render";
+export * from "./ref";

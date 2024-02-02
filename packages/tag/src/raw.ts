@@ -16,6 +16,7 @@ export const raw = (strings: TemplateStringsArray, ...values: any[]) =>
     return output;
   }, "");
 
-export const rawMemo = (strings: TemplateStringsArray, ...values: any[]) => {
-  return createMemo(() => raw(strings, ...values));
-};
+export const createRawMemo = (
+  strings: TemplateStringsArray,
+  ...values: any[]
+) => createMemo(() => raw(strings, ...values));

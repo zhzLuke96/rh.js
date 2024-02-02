@@ -49,6 +49,7 @@
   },
   "homepage": "https://github.com/zhzLuke96/rh.js#readme",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
     "@types/jest": "^29.5.2",
     "jest": "^29.5.0",
     "microbundle": "^0.15.1",

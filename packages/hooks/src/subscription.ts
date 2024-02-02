@@ -1,4 +1,4 @@
-import { readonly, Ref, shallowRef, skip, untrack } from "@rhjs/core";
+import { readonly, Ref, ref, skip, untrack } from "@rhjs/observable";
 import { createEffect } from "./eff";
 
 export type SubscribedValue<T> = {
@@ -14,7 +14,7 @@ export function createSubscription<T, ARGS extends any[] = any[]>(
     equals?: false | ((a: T, b: T) => boolean);
   } = {}
 ): SubscribedValue<T> {
-  const valueRef = shallowRef<any>();
+  const valueRef = ref<any>();
   // like createWatcher but less call stack
   createEffect((onCleanup) => {
     valueRef.value = getSnapshot();

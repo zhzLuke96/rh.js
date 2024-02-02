@@ -1,4 +1,5 @@
-import { reactive, DirectiveDefine } from "@rhjs/core";
+import { DirectiveDefine } from "@rhjs/core";
+import { trackable } from "@rhjs/observable";
 import { shallowEqual } from "../internal/shallowEqual";
 import { createEffect, onMounted, onUnmounted } from "@rhjs/hooks";
 
@@ -27,7 +28,7 @@ const events = [
   "change",
 ];
 const createPseudoState = (dom: HTMLElement) => {
-  const state = reactive({
+  const state = trackable({
     hover: false,
     active: false,
     focus: false,

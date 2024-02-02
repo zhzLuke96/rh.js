@@ -1,4 +1,6 @@
-import { unref, UnwrapRef, untrack } from "@rhjs/core";
+import { unref, untrack, RefLike } from "@rhjs/observable";
+
+type UnwrapRef<T> = T extends RefLike<infer U> ? U : T;
 
 type UnRefArray<T extends any[]> = {
   [K in keyof T]: UnwrapRef<T[K]>;

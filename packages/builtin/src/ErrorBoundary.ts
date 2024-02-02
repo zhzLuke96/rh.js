@@ -1,5 +1,5 @@
-import { ref } from "@rhjs/core";
-import { component, InlineRender, InlineRenderResult, skip } from "@rhjs/core";
+import { ref, skip } from "@rhjs/observable";
+import { component, InlineRender, InlineRenderResult } from "@rhjs/core";
 import { createRenderTrigger, onError } from "@rhjs/hooks";
 
 /**

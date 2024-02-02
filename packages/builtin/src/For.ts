@@ -1,5 +1,12 @@
-import { isRef, shallowRef, triggerRef, unref } from "@rhjs/core";
-import { InlineRenderResult, MaybeRefOrGetter, untrack } from "@rhjs/core";
+import {
+  isRef,
+  ref,
+  triggerRef,
+  unref,
+  MaybeRefOrGetter,
+  untrack,
+} from "@rhjs/observable";
+import { InlineRenderResult } from "@rhjs/core";
 import { shallowEqual } from "./internal/shallowEqual";
 import { clonePlainDeep } from "./internal/clonePlainDeep";
 import { createEffect, createMemo } from "@rhjs/hooks";
@@ -52,7 +59,7 @@ export const For = <T>(
       ? (<any>each)()
       : each
   );
-  const itemsViewRef = shallowRef<
+  const itemsViewRef = ref<
     {
       item: T;
       view: InlineRenderResult;

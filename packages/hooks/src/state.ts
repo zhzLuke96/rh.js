@@ -1,4 +1,4 @@
-import { readonly, ref, shallowRef, untrack } from "@rhjs/core";
+import { readonly, ref, untrack } from "@rhjs/observable";
 
 export type StateMutator<T> = {
   (mutate: (x: T) => T): void;
@@ -6,11 +6,10 @@ export type StateMutator<T> = {
 };
 export type StateOptions<T> = {
   equals?: false | ((a: T, b: T) => boolean);
-  deep?: boolean;
 };
 export function createState<T>(initialState: T, options?: StateOptions<T>) {
   const comparator = options?.equals;
-  const stateRef = (options?.deep ? ref : shallowRef)(initialState);
+  const stateRef = ref(initialState);
   const mutator: StateMutator<T> = (valueOrMutate: any) => {
     const currentValue = untrack(stateRef);
     const nextValue =

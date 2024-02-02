@@ -1,19 +1,15 @@
-import {
-  effect,
-  ReactiveEffectOptions,
-  ReactiveEffectRunner,
-  skip,
-} from "@rhjs/core";
+import { effect, skip } from "@rhjs/observable";
+import { ObservableEffectOptions, ObservableEffect } from "@rhjs/observable";
 import { EventOff } from "./lifeCycle";
 import { onCleanup } from "./lifeCycle";
 
 export type EffectHandler = {
-  runner: ReactiveEffectRunner;
+  runner: ObservableEffect;
   cleanup: () => void;
 };
 export const createEffect = (
   fn: (onCleanup: (callback: () => any) => any) => any,
-  options?: ReactiveEffectOptions
+  options?: ObservableEffectOptions
 ): EffectHandler => {
   let cleanupCallback: any;
   const runner = effect(
@@ -32,7 +28,7 @@ export const createEffect = (
     eventOff?.();
     cleanupCallback?.();
     cleanupCallback = undefined;
-    runner.effect.stop();
+    runner.stop();
   };
   eventOff = onCleanup(cleanup);
   return { runner, cleanup };

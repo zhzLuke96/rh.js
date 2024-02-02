@@ -1,4 +1,4 @@
-import { readonly, ref, Ref, skip, untrack } from "@rhjs/core";
+import { readonly, ref, skip, untrack, Ref } from "@rhjs/observable";
 import { createEffect } from "./eff";
 
 export type MemoValue<T> = {

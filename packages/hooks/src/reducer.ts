@@ -1,4 +1,4 @@
-import { readonly, ref, Ref, untrack } from "@rhjs/core";
+import { readonly, ref, Ref, untrack } from "@rhjs/observable";
 
 export interface Reducer<State, Action> {
   (state: State, action: Action): State;

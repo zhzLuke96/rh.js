@@ -1,5 +1,5 @@
-import type { MaybeRef, InlineRenderResult, FC } from "@rhjs/core";
-import { unref, UnwrapRef } from "@rhjs/core";
+import type { InlineRenderResult, FC } from "@rhjs/core";
+import { unref, UnwrapRef, MaybeRef } from "@rhjs/observable";
 import { rh } from "@rhjs/core";
 import { createMemo } from "@rhjs/hooks";
 

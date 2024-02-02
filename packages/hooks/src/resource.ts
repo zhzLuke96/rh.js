@@ -1,4 +1,4 @@
-import { ref, untrack } from "@rhjs/core";
+import { ref, untrack } from "@rhjs/observable";
 import { createState } from "./state";
 
 export type ResourceFetcher<T, ARGS extends any[] = any[]> = (

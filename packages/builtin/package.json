@@ -26,7 +26,8 @@
   },
   "dependencies": {
     "@rhjs/core": "workspace:^",
-    "@rhjs/hooks": "workspace:^"
+    "@rhjs/hooks": "workspace:^",
+    "@rhjs/observable": "workspace:^"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.0",

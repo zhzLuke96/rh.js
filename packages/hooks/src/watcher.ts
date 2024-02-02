@@ -1,4 +1,4 @@
-import { isRef, ReactiveEffectOptions, Ref, skip } from "@rhjs/core";
+import { isRef, ObservableEffectOptions, Ref, skip } from "@rhjs/observable";
 import { EffectHandler, createEffect } from "./eff";
 
 export type WatcherCallback<Value, Prev> = (
@@ -9,17 +9,17 @@ export type WatcherCallback<Value, Prev> = (
 export function createWatcher<T>(
   targetRef: Ref<T>,
   callback: WatcherCallback<T | undefined, T | undefined>,
-  options?: ReactiveEffectOptions
+  options?: ObservableEffectOptions
 ): EffectHandler;
 export function createWatcher<T>(
   getter: () => T,
   callback: WatcherCallback<T, T | undefined>,
-  options?: ReactiveEffectOptions
+  options?: ObservableEffectOptions
 ): EffectHandler;
 export function createWatcher(
   getterOrRef: any,
   callback: WatcherCallback<any, any>,
-  options?: ReactiveEffectOptions
+  options?: ObservableEffectOptions
 ): EffectHandler {
   let value: any;
   return createEffect((onCleanup) => {

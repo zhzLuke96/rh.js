@@ -1,5 +1,6 @@
 import type { FC, InlineRenderResult } from "@rhjs/core";
-import { ref, unref, skip, markHasOutsideEffect, View } from "@rhjs/core";
+import { markHasOutsideEffect, View } from "@rhjs/core";
+import { ref, unref, skip } from "@rhjs/observable";
 import { rh } from "@rhjs/core";
 import { createEffect, onUnmounted } from "@rhjs/hooks";
 

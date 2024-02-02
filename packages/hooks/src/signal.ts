@@ -1,4 +1,4 @@
-import { unref } from "@rhjs/core";
+import { unref } from "@rhjs/observable";
 import { StateOptions, createState } from "./state";
 
 export function createSignal<T>(initialValue: T, options?: StateOptions<T>) {

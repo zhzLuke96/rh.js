@@ -1,4 +1,4 @@
-import { isRef, unref } from '@vue/reactivity';
+import { isRef, unref } from '@rhjs/observable';
 
 export const unSetAttribute = (dom: Element, name: string) => {
   switch (name) {

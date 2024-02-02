@@ -9,5 +9,6 @@ export const createRenderTrigger = () => {
       `createRenderTrigger must be called in component setup function.`
     );
   }
-  return () => component.update();
+  return () => component.update.run();
 };
+export const createRerender = createRenderTrigger;
